@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, PlainTextResponse, FileResponse
 from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
+import mcp.types as types
 
 from ghana_mcp.providers.news import NewsProvider
 from ghana_mcp.providers.wikipedia import WikipediaGhanaProvider
@@ -44,6 +45,14 @@ price_finder = PriceFinderProvider()
 OFFLINE_MODE = (
     os.environ.get("GHANA_SEARCH_OFFLINE", "").lower() in ("1", "true", "yes")
     or "--offline" in sys.argv
+)
+
+# MCP Tool Annotations (All four hints explicitly declared for M8ven / OpenAI / Claude)
+MCP_TOOL_ANNOTATIONS = types.ToolAnnotations(
+    read_only_hint=True,
+    destructive_hint=False,
+    idempotent_hint=True,
+    open_world_hint=True,
 )
 
 # Initialize MCP Server
@@ -241,7 +250,7 @@ def _execute_search(
 # --- MCP Tool Registrations ---
 
 
-@mcp.tool()
+@mcp.tool(annotations=MCP_TOOL_ANNOTATIONS)
 def ghana_search(
     text: str,
     top_k: int = 50,
@@ -262,7 +271,7 @@ def ghana_search(
     return json.dumps([r.to_dict() for r in results], indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=MCP_TOOL_ANNOTATIONS)
 def ghana_news_search(
     text: str,
     top_k: int = 50,
@@ -278,7 +287,7 @@ def ghana_news_search(
     return json.dumps([r.to_dict() for r in results], indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=MCP_TOOL_ANNOTATIONS)
 def ghana_academic_search(
     text: str,
     top_k: int = 50,
@@ -294,7 +303,7 @@ def ghana_academic_search(
     return json.dumps([r.to_dict() for r in results], indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=MCP_TOOL_ANNOTATIONS)
 def ghana_public_services_search(
     text: str,
     top_k: int = 50,
@@ -309,7 +318,7 @@ def ghana_public_services_search(
     return json.dumps([r.to_dict() for r in results], indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=MCP_TOOL_ANNOTATIONS)
 def ghana_wikipedia_search(
     text: str,
     top_k: int = 50,
@@ -324,14 +333,14 @@ def ghana_wikipedia_search(
     return json.dumps([r.to_dict() for r in results], indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=MCP_TOOL_ANNOTATIONS)
 def ghana_business_directory(
     query: str,
     top_k: int = 15,
 ) -> str:
     """Search the Ghana Business Directory & Yellow Pages for companies, commercial enterprises, shops, and services across all 16 regions of Ghana.
     Works both ways:
-    1. Product / Commodity / Service Search: Pass what you are looking to buy or hire (e.g. 'solar panels', 'fertilizer', 'tractor parts', 'pharmacies in Kumasi', 'car batteries') to get a list of Ghanaian businesses that sell or supply them with physical locations and phone contacts.
+    1. Product / Commodity / Service Search: Pass what you are looking to buy or hire (e.g. 'solar panels', 'fertilizer', 'tractor parts', 'pharmacies in Kumasi', 'car batteries') to get a list of Ghanaian businesses that sell them with physical locations and phone contacts.
     2. Business Name Lookup: Pass a company or provider name (e.g. 'Ernest Chemists', 'Solar 4 Ghana', 'Lawyer Gwira') to retrieve their profile, location, and contact numbers.
 
     Args:
@@ -342,13 +351,13 @@ def ghana_business_directory(
     return json.dumps([r.to_dict() for r in results], indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=MCP_TOOL_ANNOTATIONS)
 def ghana_business_search(text: str, top_k: int = 15) -> str:
     """Alias for ghana_business_directory."""
     return ghana_business_directory(query=text, top_k=top_k)
 
 
-@mcp.tool()
+@mcp.tool(annotations=MCP_TOOL_ANNOTATIONS)
 def ghana_price_finder(
     product: str,
     limit: int = 10,
@@ -588,6 +597,12 @@ GHANA_SEARCH_OPENAI_TOOLS = [
                 "required": ["text"],
             },
         },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
     },
     {
         "type": "function",
@@ -616,6 +631,12 @@ GHANA_SEARCH_OPENAI_TOOLS = [
                 "required": ["query"],
             },
         },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
     },
     {
         "type": "function",
@@ -642,6 +663,12 @@ GHANA_SEARCH_OPENAI_TOOLS = [
                 },
                 "required": ["product"],
             },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
         },
     },
 ]

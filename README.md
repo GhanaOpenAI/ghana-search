@@ -4,6 +4,8 @@
 
 # Ghana Search: Ghana's Information Retrieval Engine
 
+[![M8ven Score](https://m8ven.ai/badge/mcp/ghanaopenai-ghana-search-10yfiv?v=cb894bdd32b11a61c49f983a1e312e29)](https://m8ven.ai/mcp/ghanaopenai-ghana-search-10yfiv?s=readme)
+
 Ghana Search is an information retrieval engine and Model Context Protocol (MCP) server that allows users, developers, and AI agents to search verified Ghanaian digital sources in real time.
 
 Live search portal: [https://search.ghanaopenai.org](https://search.ghanaopenai.org)
