@@ -23,7 +23,6 @@ from ghana_mcp.providers.academic import AcademicProvider
 from ghana_mcp.providers.public_services import PublicServicesProvider
 from ghana_mcp.providers.ghalii import GhaLIIProvider
 from ghana_mcp.providers.business import BusinessDirectoryProvider
-from ghana_mcp.providers.price_finder import PriceFinderProvider
 from ghana_mcp.providers.base import SearchResult
 from ghana_mcp.reranker import reranker
 from ghana_mcp.nlp import extract_search_terms
@@ -39,7 +38,6 @@ academic_provider = AcademicProvider()
 public_provider = PublicServicesProvider()
 ghalii_provider = GhaLIIProvider()
 business_provider = BusinessDirectoryProvider()
-price_finder = PriceFinderProvider()
 
 # Offline Mode Flag (air-gapped / local cache operation)
 OFFLINE_MODE = (
@@ -357,22 +355,6 @@ def ghana_business_search(text: str, top_k: int = 15) -> str:
     return ghana_business_directory(query=text, top_k=top_k)
 
 
-@mcp.tool(annotations=MCP_TOOL_ANNOTATIONS)
-def ghana_price_finder(
-    product: str,
-    limit: int = 10,
-) -> str:
-    """Search Ghanaian marketplace classifieds to find active product listings and calculate real-time market price metrics in Ghana Cedis (GH₵).
-    Calculates the average price, price range (min/max), and returns current active ad listings with locations and links.
-
-    Args:
-        product: Product or item name to price check (e.g. 'MacBook Pro', 'solar inverter', 'car tracking system', 'HP toner cartridge')
-        limit: Number of classified listings to sample (default: 10)
-    """
-    res = price_finder.search_prices(product, limit=limit)
-    return json.dumps(res, indent=2)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown lifecycle cleanly."""
@@ -496,11 +478,6 @@ class BusinessSearchRequest(BaseModel):
     top_k: int = Field(default=15, ge=1, le=50, description="Number of business listings to return")
 
 
-class PriceSearchRequest(BaseModel):
-    product: str = Field(..., description="Product name or item to search prices for in Ghana")
-    limit: int = Field(default=10, ge=1, le=50, description="Maximum classifieds listings to sample")
-
-
 @app.post("/api/business/search")
 async def api_business_search(req: BusinessSearchRequest = Body(...)):
     """Search Ghana Business Directory & Yellow Pages for companies or product suppliers (enforces strict 4.0s timeout)."""
@@ -523,35 +500,6 @@ async def api_business_search(req: BusinessSearchRequest = Body(...)):
         "query": req.query,
         "count": len(results),
         "results": [r.to_dict() for r in results],
-    }
-
-
-@app.post("/api/prices/search")
-async def api_prices_search(req: PriceSearchRequest = Body(...)):
-    """Search active classifieds listings in Ghana and compute real-time price metrics in Ghana Cedis (enforces strict 4.0s timeout)."""
-    try:
-        data = await asyncio.wait_for(
-            asyncio.to_thread(
-                price_finder.search_prices,
-                product_query=req.product,
-                limit=req.limit,
-            ),
-            timeout=MAX_SEARCH_SECONDS,
-        )
-    except asyncio.TimeoutError:
-        data = {
-            "query": req.product,
-            "sample_size": 0,
-            "average_price_ghs": None,
-            "min_price_ghs": None,
-            "max_price_ghs": None,
-            "currency": "GHS (Ghana Cedi)",
-            "listings": [],
-        }
-
-    return {
-        "status": "success",
-        "data": data,
     }
 
 
@@ -638,39 +586,6 @@ GHANA_SEARCH_OPENAI_TOOLS = [
             "openWorldHint": True,
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "ghana_price_finder",
-            "description": (
-                "Search active Ghanaian marketplace classifieds to find product listings and calculate real-time market price "
-                "metrics in Ghana Cedis (GH₵). Pass a product or item (e.g. 'MacBook Pro', 'solar inverter', 'car tracking system', "
-                "'HP toner cartridge') to get active classifieds ads, average price (GH₵), price range (min/max), sample size, "
-                "and direct listing links."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "product": {
-                        "type": "string",
-                        "description": "Product or item name to price check in Ghana (e.g. 'MacBook Pro', 'solar inverter', 'Yamaha generator').",
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "Number of classified listings to sample (default: 10, max: 30).",
-                        "default": 10,
-                    },
-                },
-                "required": ["product"],
-            },
-        },
-        "annotations": {
-            "readOnlyHint": True,
-            "destructiveHint": False,
-            "idempotentHint": True,
-            "openWorldHint": True,
-        },
-    },
 ]
 
 
@@ -701,7 +616,7 @@ async def api_tools():
 async def api_tools_execute(req: ToolExecutionRequest = Body(...)):
     """Execute a tool call emitted by vLLM, SGLang, or any OpenAI-compatible function calling model.
     Accepts tool arguments either as a parsed dictionary or as a raw JSON string (as returned in
-    tool_call.function.arguments). Supports 'ghana_search', 'ghana_business_directory', and 'ghana_price_finder'.
+    tool_call.function.arguments). Supports 'ghana_search' and 'ghana_business_directory'.
     """
     args = {}
     if req.arguments:
@@ -709,48 +624,13 @@ async def api_tools_execute(req: ToolExecutionRequest = Body(...)):
             try:
                 args = json.loads(req.arguments)
             except Exception:
-                args = {"text": req.arguments, "query": req.arguments, "product": req.arguments}
+                args = {"text": req.arguments, "query": req.arguments}
         elif isinstance(req.arguments, dict):
             args = req.arguments
 
     tool_name = req.name or "ghana_search"
 
-    # --- 1. Price Finder Tool Execution ---
-    if tool_name == "ghana_price_finder":
-        product_query = args.get("product") or args.get("query") or args.get("text") or req.text or ""
-        limit = int(args.get("limit") or 10)
-        data = await asyncio.to_thread(price_finder.search_prices, product_query=product_query, limit=limit)
-        listings = data.get("listings", [])
-        avg = data.get("average_price_ghs")
-        min_p = data.get("min_price_ghs")
-        max_p = data.get("max_price_ghs")
-
-        lines = [f"Ghana Marketplace Price Summary for '{product_query}':"]
-        if avg is not None:
-            lines.append(f"• Average Market Price: GH₵{avg:,.2f}")
-            lines.append(f"• Price Range: GH₵{min_p:,.2f} – GH₵{max_p:,.2f}")
-            lines.append(f"• Sampled Classifieds: {len(listings)}\n")
-        elif data.get("error"):
-            lines.append(f"• {data['error']}\n")
-        else:
-            lines.append("• No exact active classifieds listings found for this product.\n")
-
-        if listings:
-            lines.append("Active Classifieds Listings:")
-            for idx, item in enumerate(listings, 1):
-                lines.append(f"[{idx}] {item['title']} — GH₵{item['price_ghs']:,.2f} (Location: {item.get('location', 'Ghana')})\nURL: {item['url']}")
-
-        llm_context_output = "\n".join(lines)
-        return {
-            "status": "success",
-            "tool_name": tool_name,
-            "product": product_query,
-            "data": data,
-            "output": llm_context_output,
-            "content": llm_context_output,
-        }
-
-    # --- 2. Business Directory Tool Execution ---
+    # --- 1. Business Directory Tool Execution ---
     if tool_name in ("ghana_business_directory", "ghana_business_search"):
         biz_query = args.get("query") or args.get("text") or req.text or ""
         top_k = int(args.get("top_k") or req.top_k or 15)
@@ -770,7 +650,7 @@ async def api_tools_execute(req: ToolExecutionRequest = Body(...)):
             "results": [r.to_dict() for r in results],
         }
 
-    # --- 3. National Knowledge Search (Default) ---
+    # --- 2. National Knowledge Search (Default) ---
     query_text = args.get("text") or req.text or ""
     if not query_text.strip():
         return {
@@ -892,7 +772,6 @@ async def api_health():
             "mcp_sse": "/mcp/sse",
             "rest_search": "/api/search",
             "rest_business_search": "/api/business/search",
-            "rest_price_search": "/api/prices/search",
             "tools_schema": "/api/tools",
             "tools_execute": "/api/tools/execute",
             "analytics_stats": "/api/analytics/stats",

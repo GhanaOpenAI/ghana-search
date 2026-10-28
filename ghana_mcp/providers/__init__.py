@@ -5,7 +5,6 @@ from ghana_mcp.providers.wikipedia import WikipediaGhanaProvider
 from ghana_mcp.providers.academic import AcademicProvider
 from ghana_mcp.providers.public_services import PublicServicesProvider
 from ghana_mcp.providers.business import BusinessDirectoryProvider
-from ghana_mcp.providers.price_finder import PriceFinderProvider
 
 __all__ = [
     "SearchResult",
@@ -15,5 +14,4 @@ __all__ = [
     "AcademicProvider",
     "PublicServicesProvider",
     "BusinessDirectoryProvider",
-    "PriceFinderProvider",
 ]

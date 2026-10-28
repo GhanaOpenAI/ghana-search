@@ -14,7 +14,6 @@ from ghana_mcp.server import (
     ghana_wikipedia_search,
     ghana_business_directory,
     ghana_business_search,
-    ghana_price_finder,
 )
 
 
@@ -74,16 +73,6 @@ def test_ghana_business_search_by_name():
     assert isinstance(data, list)
 
 
-def test_ghana_price_finder_by_name():
-    """Verify classifieds product price finder tool."""
-    raw = ghana_price_finder("solar panel", limit=2)
-    assert raw is not None
-    data = json.loads(raw)
-    assert isinstance(data, dict)
-    assert "average_price_ghs" in data
-    assert "currency" in data
-
-
 def test_all_tools_have_all_four_annotations():
     """Verify all 4 hints (readOnlyHint, destructiveHint, idempotentHint, openWorldHint)
     are explicitly defined as booleans on every registered tool.
@@ -110,6 +99,5 @@ if __name__ == "__main__":
     test_ghana_wikipedia_search_by_name()
     test_ghana_business_directory_by_name()
     test_ghana_business_search_by_name()
-    test_ghana_price_finder_by_name()
     asyncio.run(test_all_tools_have_all_four_annotations())
     print("All tool tests and annotation verification passed successfully!")

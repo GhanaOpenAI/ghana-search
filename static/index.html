@@ -253,59 +253,6 @@
       color: #0f172a;
     }
 
-    /* Price Summary Banner */
-    .price-summary-banner {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-left: 4px solid #10b981;
-      border-radius: 8px;
-      padding: 18px 24px;
-      margin-bottom: 20px;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
-    .price-metric-group {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 28px;
-    }
-    .price-metric-box {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .price-metric-lbl {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #64748b;
-    }
-    .price-metric-val {
-      font-size: 24px;
-      font-weight: 800;
-      color: #0f172a;
-    }
-    .price-metric-val.highlight {
-      color: #059669;
-    }
-    .price-tag-badge {
-      background: #ecfdf5;
-      border: 1px solid #a7f3d0;
-      color: #065f46;
-      font-weight: 700;
-      font-size: 13px;
-      padding: 3px 10px;
-      border-radius: 5px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
     .btn-call {
       background: #eff6ff;
       border: 1px solid #bfdbfe;
@@ -677,7 +624,7 @@
     
     <div class="hero-area">
       <h1 class="hero-h1">Ghana's Information Retrieval Engine</h1>
-      <p class="hero-p">Search verified government portals, court judgments, university research, commercial directories, and marketplace classifieds.</p>
+      <p class="hero-p">Search verified government portals, court judgments, university research, and commercial directories.</p>
     </div>
 
     <!-- Mode Switcher Tabs -->
@@ -691,11 +638,6 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
         <span>Business Directory</span>
         <span class="mode-badge">Yellow Pages</span>
-      </button>
-      <button class="mode-tab" id="tab-prices" onclick="switchMode('prices')">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        <span>Price Finder</span>
-        <span class="mode-badge">Classifieds</span>
       </button>
     </div>
 
@@ -751,9 +693,6 @@
       </button>
     </div>
 
-    <!-- Dynamic Market Pricing Banner (Price Finder mode) -->
-    <div id="pricing-banner-area"></div>
-
     <!-- Results List (Paginated at 10 results per page) -->
     <div id="results-stream" class="results-list"></div>
 
@@ -792,13 +731,6 @@ curl -X POST https://search.ghanaopenai.org/api/business/search \
   -d '{"query": "tractor parts Accra", "top_k": 10}'
       </div>
 
-      <strong style="font-size: 13px;">4. Marketplace Classifieds & Price Finder</strong>
-      <div class="code-view">
-curl -X POST https://search.ghanaopenai.org/api/prices/search \
-  -H "Content-Type: application/json" \
-  -d '{"product": "MacBook Pro", "limit": 10}'
-      </div>
-
       <div style="display:flex; justify-content:flex-end; margin-top:16px;">
         <a href="https://github.com/GhanaOpenAI/ghana-search" target="_blank" class="nav-btn" style="background:#F6CC4F; color:#0f172a; font-weight:700; border:1px solid #e5bd3b;">
           View Documentation on GitHub →
@@ -830,8 +762,7 @@ curl -X POST https://search.ghanaopenai.org/api/prices/search \
       ? window.location.origin
       : 'https://search.ghanaopenai.org';
 
-    let currentMode = 'knowledge'; // 'knowledge' | 'business' | 'prices'
-    let currentPricingData = null;
+    let currentMode = 'knowledge'; // 'knowledge' | 'business'
     let allRecords = [];
     let currentPage = 1;
     const PAGE_SIZE = 10;
@@ -858,24 +789,12 @@ curl -X POST https://search.ghanaopenai.org/api/prices/search \
           { label: "Ernest Chemists", query: "Ernest Chemists" },
           { label: "Lawyers Takoradi", query: "lawyers Takoradi" }
         ]
-      },
-      prices: {
-        placeholder: "Enter product name to check market prices in Ghana (e.g. 'MacBook Pro', 'solar inverter')...",
-        badge: "Market Price Intelligence",
-        suggestions: [
-          { label: "MacBook Pro", query: "MacBook Pro" },
-          { label: "Solar Inverter", query: "solar inverter" },
-          { label: "Toner Cartridge", query: "toner cartridge" },
-          { label: "Car Tracker", query: "car tracking systems" },
-          { label: "Graphic Card", query: "graphic card" }
-        ]
       }
     };
 
     function switchMode(mode) {
       if (!MODE_CONFIG[mode]) return;
       currentMode = mode;
-      currentPricingData = null;
 
       // Update Tab Styles
       document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.remove('active'));
@@ -896,7 +815,6 @@ curl -X POST https://search.ghanaopenai.org/api/prices/search \
       `;
 
       // Clear previous results
-      document.getElementById('pricing-banner-area').innerHTML = '';
       document.getElementById('results-stream').innerHTML = '';
       document.getElementById('results-nav').style.display = 'none';
       document.getElementById('pagination-controls').style.display = 'none';
@@ -918,11 +836,9 @@ curl -X POST https://search.ghanaopenai.org/api/prices/search \
       document.getElementById('query-input').value = '';
       document.getElementById('telemetry-bar').className = 'telemetry-row';
       document.getElementById('results-nav').style.display = 'none';
-      document.getElementById('pricing-banner-area').innerHTML = '';
       document.getElementById('results-stream').innerHTML = '';
       document.getElementById('pagination-controls').style.display = 'none';
       allRecords = [];
-      currentPricingData = null;
       currentPage = 1;
       document.getElementById('query-input').focus();
     }
@@ -941,7 +857,6 @@ curl -X POST https://search.ghanaopenai.org/api/prices/search \
     function renderCards() {
       const container = document.getElementById('results-stream');
       const pagControls = document.getElementById('pagination-controls');
-      const pricingBannerArea = document.getElementById('pricing-banner-area');
 
       const totalItems = allRecords.length;
       const totalPages = Math.ceil(totalItems / PAGE_SIZE) || 1;
@@ -951,31 +866,6 @@ curl -X POST https://search.ghanaopenai.org/api/prices/search \
       const startIdx = (currentPage - 1) * PAGE_SIZE;
       const endIdx = Math.min(startIdx + PAGE_SIZE, totalItems);
       const pageRecords = allRecords.slice(startIdx, endIdx);
-
-      // Render Price Summary Banner in 'prices' mode
-      if (currentMode === 'prices' && currentPricingData && currentPricingData.average_price_ghs) {
-        pricingBannerArea.innerHTML = `
-          <div class="price-summary-banner">
-            <div class="price-metric-group">
-              <div class="price-metric-box">
-                <span class="price-metric-lbl">Average Asking Price</span>
-                <span class="price-metric-val highlight">GH₵${currentPricingData.average_price_ghs.toLocaleString()}</span>
-              </div>
-              <div class="price-metric-box">
-                <span class="price-metric-lbl">Price Range (Min – Max)</span>
-                <span class="price-metric-val">GH₵${(currentPricingData.min_price_ghs || 0).toLocaleString()} – GH₵${(currentPricingData.max_price_ghs || 0).toLocaleString()}</span>
-              </div>
-              <div class="price-metric-box">
-                <span class="price-metric-lbl">Market Sample</span>
-                <span class="price-metric-val" style="font-size: 20px;">${currentPricingData.sample_size} Active Ads</span>
-              </div>
-            </div>
-            <span class="price-tag-badge">Ghana Marketplace</span>
-          </div>
-        `;
-      } else {
-        pricingBannerArea.innerHTML = '';
-      }
 
       if (totalItems > 0) {
         document.getElementById('summary-counter').innerText = `Showing ${startIdx + 1}–${endIdx} of ${totalItems} results`;
@@ -1002,11 +892,6 @@ curl -X POST https://search.ghanaopenai.org/api/prices/search \
         let actionButtons = '';
         if (isPdf) {
           actionButtons = `<a href="${r.url}" target="_blank" class="btn-action btn-pdf"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg> Download PDF</a>`;
-        } else if (r.category === 'classifieds') {
-          actionButtons = `
-            <a href="${r.url}" target="_blank" class="btn-action btn-pdf">View Classified Ad →</a>
-            <span class="price-tag-badge">GH₵${(r.price_ghs || 0).toLocaleString()}</span>
-          `;
         } else if (r.category === 'business') {
           const phone = r.metadata?.phone;
           const phoneBtn = phone ? `<a href="tel:${phone}" class="btn-call">📞 Call ${phone}</a>` : '';
@@ -1074,16 +959,10 @@ curl -X POST https://search.ghanaopenai.org/api/prices/search \
       const resultsNav = document.getElementById('results-nav');
       const resultsStream = document.getElementById('results-stream');
       const pagControls = document.getElementById('pagination-controls');
-      const pricingBannerArea = document.getElementById('pricing-banner-area');
 
       btn.disabled = true;
       telemetryBar.className = 'telemetry-row active';
-      pricingBannerArea.innerHTML = '';
-      currentPricingData = null;
-
-      if (currentMode === 'prices') {
-        telemetryMsg.innerText = 'Scanning marketplace classifieds & computing price metrics...';
-      } else if (currentMode === 'business') {
+      if (currentMode === 'business') {
         telemetryMsg.innerText = 'Polling Ghana Yellow Pages and commercial directory...';
       } else {
         telemetryMsg.innerText = 'Analyzing query with spaCy NLP and polling repositories...';
@@ -1112,10 +991,7 @@ curl -X POST https://search.ghanaopenai.org/api/prices/search \
         let endpoint = `${BACKEND_URL}/api/search`;
         let payload = {};
 
-        if (currentMode === 'prices') {
-          endpoint = `${BACKEND_URL}/api/prices/search`;
-          payload = { product: q, limit: 30 };
-        } else if (currentMode === 'business') {
+        if (currentMode === 'business') {
           endpoint = `${BACKEND_URL}/api/business/search`;
           payload = { query: q, top_k: 30 };
         } else {
@@ -1138,21 +1014,7 @@ curl -X POST https://search.ghanaopenai.org/api/prices/search \
         const data = await res.json();
         currentPage = 1;
 
-        if (currentMode === 'prices') {
-          currentPricingData = data.data || {};
-          const rawListings = currentPricingData.listings || [];
-          allRecords = rawListings.map(item => ({
-            title: item.title,
-            url: item.url,
-            snippet: `Active Classifieds Listing • Price: GH₵${(item.price_ghs || 0).toLocaleString()} • Location: ${item.location || 'Ghana'}`,
-            source: 'Ghana Classifieds (GhanaBusinessWeb)',
-            category: 'classifieds',
-            price_ghs: item.price_ghs,
-            location: item.location,
-          }));
-          const avgStr = currentPricingData.average_price_ghs ? ` • Avg: GH₵${currentPricingData.average_price_ghs.toLocaleString()}` : '';
-          telemetryMsg.innerText = `Sampled ${allRecords.length} classified ads${avgStr}`;
-        } else if (currentMode === 'business') {
+        if (currentMode === 'business') {
           allRecords = data.results || [];
           telemetryMsg.innerText = `Retrieved ${allRecords.length} verified commercial listings`;
         } else {

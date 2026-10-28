@@ -29,7 +29,7 @@ Ghana Search queries the public search APIs of over 430 Ghanaian institutions an
 
 ## Web Search Interface
 
-Visit [https://search.ghanaopenai.org](https://search.ghanaopenai.org) to search directly from your browser with three specialized modes:
+Visit [https://search.ghanaopenai.org](https://search.ghanaopenai.org) to search directly from your browser with two specialized modes:
 
 1. **National Knowledge (Core)**:
    - Queries 164 verified government portals, university thesis repositories (KNUST/UG/UCC), Supreme Court rulings (GhaLII), parliamentary records, and national news networks.
@@ -37,9 +37,6 @@ Visit [https://search.ghanaopenai.org](https://search.ghanaopenai.org) to search
 
 2. **Business Directory (Yellow Pages)**:
    - **Two-way lookup**: Search by product/commodity to find suppliers and stores (e.g. *"solar panels"*, *"tractor parts"*, *"pharmacies Kumasi"*), OR search by business name (e.g. *"Ernest Chemists"*, *"Solar 4 Ghana"*) to get branches, physical addresses, and direct phone call links.
-
-3. **Price Finder (Marketplace Intelligence)**:
-   - Search active Ghanaian classifieds ads and calculate real-time pricing metrics in Ghana Cedis (`GH₵`): average market price, price range (min/max), and active product listings.
 
 ---
 
@@ -67,39 +64,6 @@ curl -X POST https://search.ghanaopenai.org/api/business/search \
     "query": "tractor parts Accra",
     "top_k": 5
   }'
-```
-
-### 3. Classifieds & Market Price Finder (`POST /api/prices/search`)
-
-```bash
-curl -X POST https://search.ghanaopenai.org/api/prices/search \
-  -H "Content-Type: application/json" \
-  -d '{
-    "product": "MacBook Pro",
-    "limit": 5
-  }'
-```
-
-```json
-{
-  "status": "success",
-  "data": {
-    "query": "MacBook Pro",
-    "sample_size": 2,
-    "average_price_ghs": 5700.0,
-    "min_price_ghs": 2900.0,
-    "max_price_ghs": 8500.0,
-    "currency": "GHS (Ghana Cedi)",
-    "listings": [
-      {
-        "title": "MacBook Pro 2019",
-        "price_ghs": 8500.0,
-        "location": "Accra",
-        "url": "https://www.ghanabusinessweb.com/classifieds/1254-macbook-pro-2019"
-      }
-    ]
-  }
-}
 ```
 
 ### Request Parameters (`POST /api/search`)
@@ -244,20 +208,18 @@ if response.choices[0].message.tool_calls:
 
 ### 3. Model Context Protocol (MCP) Remote Endpoint & Tools
 
-Ghana Search provides three distinct, dedicated MCP tools:
+Ghana Search provides two distinct, dedicated MCP tools:
 
 | MCP Tool Name | Functionality | Expected Input | Example Output |
 | :--- | :--- | :--- | :--- |
 | `ghana_search` | Verified national knowledge (gov, laws, theses, news) | Question or policy topic | Official acts, thesis abstracts, news reports |
 | `ghana_business_directory` | Yellow pages & product supplier locator | Product, service, or business name | Matching businesses, locations, and phone numbers |
-| `ghana_price_finder` | Classifieds product search & price estimation | Product / item name | Average price (GH₵), price range, active listings |
 
 For MCP clients and agent orchestrators connecting over Server-Sent Events (SSE):
 - **SSE Endpoint**: `https://search.ghanaopenai.org/mcp/sse`
 - **Tool Schema Endpoint**: `https://search.ghanaopenai.org/api/tools`
 - **Tool Execution Endpoint**: `https://search.ghanaopenai.org/api/tools/execute`
 - **Commercial Directory Endpoint**: `https://search.ghanaopenai.org/api/business/search`
-- **Classifieds Price Finder Endpoint**: `https://search.ghanaopenai.org/api/prices/search`
 
 ---
 

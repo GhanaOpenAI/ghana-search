@@ -22,5 +22,3 @@ PROVIDER_TIMEOUT = 3.2  # maximum time to wait for external parallel providers
 DEFAULT_TIMEOUT = 3.0   # seconds per individual external API socket query
 socket.setdefaulttimeout(DEFAULT_TIMEOUT)
 
-# Optional Tonaton session cookie (must include a valid aws-waf-token; short-lived and IP-bound)
-TONATON_COOKIE = os.environ.get("TONATON_COOKIE", "")
