@@ -11,7 +11,7 @@ from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Set
 
 from ghana_mcp.providers.base import SearchResult
-from ghana_mcp.nlp import token_matches_title, is_foreign_title, FOREIGN_COUNTRIES, GHANA_CITIES
+from ghana_mcp.nlp import token_matches_title, has_word, is_foreign_title, FOREIGN_COUNTRIES, GHANA_CITIES
 
 
 def parse_date_timestamp(date_str: Optional[str]) -> float:
@@ -164,7 +164,7 @@ class TitleFirstReranker:
                     continue
 
             # 3. Title Matching (No body/content searching)
-            title_phrase_matches = sum(1 for p in sub_phrases if p in title_lower)
+            title_phrase_matches = sum(1 for p in sub_phrases if has_word(p, title_lower))
             title_token_matches = sum(1 for t in query_tokens if token_matches_title(t, search_target))
 
             # Mandatory match: Discard any document with zero overlap

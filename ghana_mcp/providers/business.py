@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 
 from ghana_mcp.providers.base import BaseProvider, SearchResult
 from ghana_mcp.config import USER_AGENT, DEFAULT_TIMEOUT
-from ghana_mcp.nlp import GHANA_CITIES, token_matches_title
+from ghana_mcp.nlp import GHANA_CITIES, token_matches_title, has_word
 
 SSL_CTX = ssl.create_default_context()
 SSL_CTX.check_hostname = False
@@ -47,7 +47,7 @@ def is_relevant_business(name: str, cat_desc: str, core_tokens: List[str]) -> bo
         if token_matches_title(t, target_text):
             return True
         norm_t = normalize_business_token(t)
-        if norm_t in target_text:
+        if has_word(norm_t, target_text):
             return True
 
     return False

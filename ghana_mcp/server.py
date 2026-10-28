@@ -730,6 +730,8 @@ async def api_tools_execute(req: ToolExecutionRequest = Body(...)):
             lines.append(f"• Average Market Price: GH₵{avg:,.2f}")
             lines.append(f"• Price Range: GH₵{min_p:,.2f} – GH₵{max_p:,.2f}")
             lines.append(f"• Sampled Classifieds: {len(listings)}\n")
+        elif data.get("error"):
+            lines.append(f"• {data['error']}\n")
         else:
             lines.append("• No exact active classifieds listings found for this product.\n")
 

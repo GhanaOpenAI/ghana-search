@@ -47,53 +47,58 @@ def is_foreign_title(title: str) -> bool:
     return False
 
 
+def has_word(word: str, text: str) -> bool:
+    """True if word appears in text as a whole word (so 'car' doesn't match 'eyecare')."""
+    return re.search(rf"\b{re.escape(word)}\b", text) is not None
+
+
 def token_matches_title(token: str, title: str) -> bool:
     """Match token in title considering singular/plural and morphological derivations."""
     t = token.lower().strip()
     tl = (title or "").lower()
     if not t or len(t) < 2:
         return False
-    if t in tl:
+    if has_word(t, tl):
         return True
 
     # 1. -ies <-> -y (e.g. pharmacies <-> pharmacy, companies <-> company)
     if t.endswith("ies") and len(t) > 4:
         sing_y = t[:-3] + "y"
-        if sing_y in tl:
+        if has_word(sing_y, tl):
             return True
     elif t.endswith("y") and len(t) > 2:
         plur_ies = t[:-1] + "ies"
-        if plur_ies in tl:
+        if has_word(plur_ies, tl):
             return True
 
     # 2. -es (e.g. branches <-> branch, taxes <-> tax, speeches <-> speech)
     if t.endswith("es") and len(t) > 4:
         sing_es = t[:-2]
-        if sing_es in tl:
+        if has_word(sing_es, tl):
             return True
     elif t.endswith(("ch", "sh", "x", "s", "z")):
         plur_es = t + "es"
-        if plur_es in tl:
+        if has_word(plur_es, tl):
             return True
 
     # 3. -s (e.g. bills <-> bill, laws <-> law, books <-> book)
     if t.endswith("s") and len(t) > 3 and not t.endswith("ss"):
         sing_s = t[:-1]
-        if sing_s in tl:
+        if has_word(sing_s, tl):
             return True
     if not t.endswith("s"):
         plur_s = t + "s"
-        if plur_s in tl:
+        if has_word(plur_s, tl):
             return True
 
     # 4. Adjective/noun derivations (e.g. parliamentary -> parliament, ghanaian -> ghana)
-    if t.endswith("ary") and len(t) > 6 and t[:-3] in tl:
+    if t.endswith("ary") and len(t) > 6 and has_word(t[:-3], tl):
         return True
-    if (t + "ary") in tl:
+    if has_word(t + "ary", tl):
         return True
-    if t.endswith("ian") and len(t) > 5 and t[:-3] in tl:
+    if t.endswith("ian") and len(t) > 5 and has_word(t[:-3], tl):
         return True
-    if (t + "ian") in tl:
+    if has_word(t + "ian", tl):
         return True
 
     return False
