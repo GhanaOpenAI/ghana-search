@@ -34,3 +34,4 @@ ENV/
 *.db-wal
 *.db-shm
 session-*.md
+data/crawler*
