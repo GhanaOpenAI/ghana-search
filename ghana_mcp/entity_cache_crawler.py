@@ -38,7 +38,7 @@ class EntityCacheCrawler:
         self,
         dataset_name: str = DEFAULT_DATASET,
         hf_repo_id: str = DEFAULT_HF_REPO,
-        batch_size: int = 50,
+        batch_size: int = 500,
         max_wait_seconds: float = 5.0,
         workers: int = 3,
         limit: Optional[int] = None,
@@ -321,7 +321,7 @@ def main():
         description="Ghana Search: Named Entity Offline Cache Crawler & Hugging Face Sync."
     )
     parser.add_argument("--categories", type=str, default="news,academic,public_services,wikipedia,business", help="Comma-separated category filters (default: news,academic,public_services,wikipedia,business)")
-    parser.add_argument("--batch-size", type=int, default=50, help="Entities per push batch (default: 50)")
+    parser.add_argument("--batch-size", type=int, default=500, help="Entities per push batch (default: 500)")
     parser.add_argument("--max-wait", type=float, default=5.0, help="Max wait seconds per query (default: 5.0)")
     parser.add_argument("--workers", type=int, default=3, help="Concurrent worker threads (default: 3)")
     parser.add_argument("--limit", type=int, default=None, help="Optional limit on total entities to process")

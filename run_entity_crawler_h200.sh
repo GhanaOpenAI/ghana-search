@@ -40,7 +40,7 @@ nohup bash -c '
     while true; do
         echo "[$(date -u +"%Y-%m-%d %H:%M:%S UTC")] Launching Entity Cache Crawler..." >> "'"$LOG_FILE"'"
         "'"$VENV_PYTHON"'" -m ghana_mcp.entity_cache_crawler \
-            --batch-size 50 \
+            --batch-size 500 \
             --max-wait 5.0 \
             --workers 3 >> "'"$LOG_FILE"'" 2>&1 || true
         echo "[$(date -u +"%Y-%m-%d %H:%M:%S UTC")] Crawler process exited. Restarting in 15s..." >> "'"$LOG_FILE"'"
