@@ -44,6 +44,7 @@ class EntityCacheCrawler:
         limit: Optional[int] = None,
         checkpoint_file: str = DEFAULT_CHECKPOINT_FILE,
         push_to_hf: bool = True,
+        categories: Optional[List[str]] = None,
     ):
         self.dataset_name = dataset_name
         self.hf_repo_id = hf_repo_id
@@ -53,6 +54,7 @@ class EntityCacheCrawler:
         self.limit = limit
         self.checkpoint_file = checkpoint_file
         self.push_to_hf = push_to_hf
+        self.categories = categories or ["news", "academic", "public_services", "wikipedia", "business"]
         self.running = True
 
         os.makedirs(os.path.dirname(os.path.abspath(checkpoint_file)), exist_ok=True)
@@ -225,11 +227,11 @@ class EntityCacheCrawler:
                 return 0
 
             try:
-                # Query Ghana Search across news, academic, public_services, wikipedia
+                # Query Ghana Search across knowledge sources and the commercial business directory
                 results = _execute_search(
                     text=phrase,
-                    categories=["news", "academic", "public_services", "wikipedia"],
-                    top_k=5,
+                    categories=self.categories,
+                    top_k=8,
                     rerank=True,
                     max_wait_seconds=self.max_wait,
                     client_type="entity_crawler",
@@ -318,6 +320,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Ghana Search: Named Entity Offline Cache Crawler & Hugging Face Sync."
     )
+    parser.add_argument("--categories", type=str, default="news,academic,public_services,wikipedia,business", help="Comma-separated category filters (default: news,academic,public_services,wikipedia,business)")
     parser.add_argument("--batch-size", type=int, default=50, help="Entities per push batch (default: 50)")
     parser.add_argument("--max-wait", type=float, default=5.0, help="Max wait seconds per query (default: 5.0)")
     parser.add_argument("--workers", type=int, default=3, help="Concurrent worker threads (default: 3)")
@@ -335,12 +338,14 @@ def main():
             print("No checkpoint file found at", DEFAULT_CHECKPOINT_FILE)
         return
 
+    cats = [c.strip() for c in args.categories.split(",") if c.strip()]
     crawler = EntityCacheCrawler(
         batch_size=args.batch_size,
         max_wait_seconds=args.max_wait,
         workers=args.workers,
         limit=args.limit,
         push_to_hf=not args.no_hf_push,
+        categories=cats,
     )
 
     def signal_handler(sig, frame):
