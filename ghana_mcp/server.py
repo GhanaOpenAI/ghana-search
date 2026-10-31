@@ -147,7 +147,11 @@ def _execute_search(
     candidates: List[SearchResult] = []
     per_provider_limit = min(max(int(top_k * 0.15), 6), 10)
 
-    # 3. Parallel asynchronous dispatch across all selected providers
+    # 3. Instantly pull matching pre-cached verified knowledge from local corpus (0ms SQLite lookup)
+    cached_candidates = search_cache.search_offline(search_keywords, cats, limit=per_provider_limit * 2)
+    candidates.extend(cached_candidates)
+
+    # 4. Parallel asynchronous dispatch across all selected providers
     tasks = []
     if "news" in cats:
         tasks.append(("news", lambda: news_provider.search(search_keywords, limit=per_provider_limit)))

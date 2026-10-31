@@ -69,6 +69,81 @@ class QueryCache:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_url_cache_source ON url_content_cache(source);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_url_cache_category ON url_content_cache(category);")
 
+        # Automatically seed bundled offline knowledge packs into url_content_cache on startup
+        self._seed_bundled_offline_packs()
+
+    def _seed_bundled_offline_packs(self):
+        """Automatically seed all bundled offline knowledge packs into url_content_cache on startup."""
+        seed_files = []
+        # Check ghana_mcp/data/
+        pkg_data_dir = os.path.join(os.path.dirname(__file__), "data")
+        if os.path.isdir(pkg_data_dir):
+            for fname in os.listdir(pkg_data_dir):
+                if fname.endswith(".jsonl"):
+                    seed_files.append(os.path.join(pkg_data_dir, fname))
+
+        # Check repository data/ directory
+        repo_data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+        if os.path.isdir(repo_data_dir):
+            for fname in os.listdir(repo_data_dir):
+                if fname.endswith(".jsonl"):
+                    fpath = os.path.join(repo_data_dir, fname)
+                    if fpath not in seed_files:
+                        seed_files.append(fpath)
+
+        if not seed_files:
+            return
+
+        now = time.time()
+        items_to_insert = []
+        seen_urls = set()
+
+        for sfile in seed_files:
+            try:
+                with open(sfile, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        doc = json.loads(line)
+                        raw_url = doc.get("url", "").strip()
+                        norm_url = raw_url.rstrip("/")
+                        if not norm_url or norm_url in seen_urls:
+                            continue
+                        seen_urls.add(norm_url)
+                        meta_json = json.dumps(doc.get("metadata") or {})
+                        items_to_insert.append((
+                            raw_url,
+                            doc.get("title") or "",
+                            doc.get("snippet") or "",
+                            doc.get("content") or doc.get("snippet") or "",
+                            doc.get("source") or "",
+                            doc.get("category") or "",
+                            doc.get("published_date") or "",
+                            meta_json,
+                            now,
+                            now,
+                        ))
+            except Exception:
+                continue
+
+        if items_to_insert:
+            try:
+                with self._get_connection() as conn:
+                    conn.executemany(
+                        """
+                        INSERT INTO url_content_cache (
+                            url, title, snippet, content, source, category,
+                            published_date, metadata_json, first_seen, last_accessed, access_count
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                        ON CONFLICT(url) DO UPDATE SET
+                            content = CASE WHEN length(excluded.content) > length(url_content_cache.content) THEN excluded.content ELSE url_content_cache.content END
+                        """,
+                        items_to_insert,
+                    )
+            except Exception:
+                pass
+
     # --- Tier 1: Query-Level 24-Hour Cache ---
 
     def _make_key(self, text: str, categories: Optional[List[str]], top_k: int) -> str:

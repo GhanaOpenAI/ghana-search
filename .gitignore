@@ -33,3 +33,4 @@ ENV/
 *.sqlite3
 *.db-wal
 *.db-shm
+session-*.md

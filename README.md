@@ -250,17 +250,24 @@ The builder runs each question through Ghana Search, retrieves matching publicat
 
 ### 2. Run Ghana Search in 100% Offline Mode
 
-Launch the server completely air-gapped without internet access:
+Launch the server completely air-gapped on localhost without internet access using the pre-bundled verified knowledge base:
 
 ```bash
-# Launch server pointing to your domain knowledge pack
-GHANA_SEARCH_OFFLINE=1 GHANA_SEARCH_DB=data/ghana_farmer_qa_pack.db python3 -m ghana_mcp.server
+# Launch server in offline mode (automatically uses pre-bundled knowledge packs)
+python3 -m ghana_mcp.server --offline
+
+# Or via environment variable with a custom domain pack
+GHANA_SEARCH_OFFLINE=1 python3 -m ghana_mcp.server
+
+# Connect directly to local LLMs via MCP stdio:
+python3 -m ghana_mcp.server --stdio --offline
 ```
 
 In offline mode:
 - **0 external network requests** are performed.
-- Queries are matched instantly (< 5ms) against the local knowledge pack using Title-First & Recent-First ranking.
-- All MCP tools, REST endpoints (`/api/search`), and tool execution APIs (`/api/tools/execute`) work seamlessly offline for local LLMs.
+- Pre-bundled knowledge packs (covering agriculture, government regulations, court rulings, thesis research, and news) are auto-seeded on launch.
+- Queries are matched instantly (< 2ms) against the local knowledge pack using Title-First & Recent-First ranking.
+- All MCP tools, REST endpoints (`/api/search`), and tool execution APIs (`/api/tools/execute`) work seamlessly offline for local LLMs (vLLM, Ollama, SGLang, Claude Desktop).
 
 ---
 
