@@ -67,6 +67,7 @@ def _execute_search(
     categories: Optional[List[str]] = None,
     top_k: int = 50,
     rerank: bool = True,
+    max_wait_seconds: Optional[float] = None,
     client_type: str = "mcp_tool",
     user_agent: str = "",
 ) -> List[SearchResult]:
@@ -168,8 +169,9 @@ def _execute_search(
     from concurrent.futures import ThreadPoolExecutor, wait
     executor = ThreadPoolExecutor(max_workers=len(tasks) or 1)
     future_to_task = {executor.submit(fn): name for name, fn in tasks}
-    # Wait strictly up to PROVIDER_TIMEOUT budget (3.2s so total response delivers under 4.0s)
-    done, not_done = wait(future_to_task.keys(), timeout=PROVIDER_TIMEOUT)
+    # Wait strictly up to provider budget (default 3.2s for web API, or custom budget up to 5.0s)
+    provider_budget = max_wait_seconds if max_wait_seconds is not None else PROVIDER_TIMEOUT
+    done, not_done = wait(future_to_task.keys(), timeout=provider_budget)
     for future in done:
         try:
             res = future.result()
