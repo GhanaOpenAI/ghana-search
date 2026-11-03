@@ -254,6 +254,28 @@
       color: #0f172a;
     }
 
+    .filter-chip {
+      background: #ffffff;
+      border: 1px solid var(--surface-border);
+      color: var(--text-body);
+      font-family: inherit;
+      font-size: 12.5px;
+      padding: 3px 11px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.1s, border-color 0.1s;
+    }
+    .filter-chip:hover {
+      background: var(--bg-subtle);
+      border-color: var(--border);
+    }
+    .filter-chip.active-filter {
+      background: #0f172a;
+      color: #ffffff;
+      border-color: #0f172a;
+      font-weight: 700;
+    }
+
     .btn-call {
       background: #eff6ff;
       border: 1px solid #bfdbfe;
@@ -270,6 +292,17 @@
     }
     .btn-call:hover {
       background: #dbeafe;
+    }
+
+    /* Entity Definition Card */
+    .entity-def-card {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-left: 4px solid #10b981;
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     }
 
     /* Landmark Location Card */
@@ -699,26 +732,7 @@
     
     <div class="hero-area">
       <h1 class="hero-h1">Ghana's Information Retrieval Engine</h1>
-      <p class="hero-p">Search verified government portals, court judgments, commercial directories, and landmark locations across Ghana.</p>
-    </div>
-
-    <!-- Mode Switcher Tabs -->
-    <div class="mode-switcher" id="mode-switcher">
-      <button class="mode-tab active" id="tab-knowledge" onclick="switchMode('knowledge')">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-        <span>National Knowledge</span>
-        <span class="mode-badge">Core</span>
-      </button>
-      <button class="mode-tab" id="tab-business" onclick="switchMode('business')">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-        <span>Business Directory</span>
-        <span class="mode-badge">Yellow Pages</span>
-      </button>
-      <button class="mode-tab" id="tab-location" onclick="switchMode('location')">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-        <span>Landmarks & Places</span>
-        <span class="mode-badge">Locator</span>
-      </button>
+      <p class="hero-p">Unified search across 104,000+ Ghanaian entity definitions, 164 government agencies, court judgments, university research, news, business directories, and landmarks.</p>
     </div>
 
     <!-- Solid Search Bar Card with Search and Reset Buttons -->
@@ -733,7 +747,7 @@
         type="text"
         id="query-input"
         class="query-input"
-        placeholder="Enter search terms, policy questions, or research topics..."
+        placeholder="Search any Ghanaian entity, topic, place, law, research, or business..."
         value=""
         autocomplete="off"
       />
@@ -746,11 +760,13 @@
     <!-- Clean Suggested Topics without Brackets -->
     <div class="suggested-bar" id="suggested-bar">
       <span class="suggested-lbl">Suggested:</span>
-      <button class="suggested-btn" onclick="applyQuery('who is the current president of ghana')">President of Ghana</button>
-      <button class="suggested-btn" onclick="applyQuery('renewable solar energy battery storage research KNUST')">Solar Energy</button>
-      <button class="suggested-btn" onclick="applyQuery('Supreme Court income tax judgment GhaLII')">Tax Judgments</button>
-      <button class="suggested-btn" onclick="applyQuery('Ghana Revenue Authority VAT and electronic invoicing requirements')">GRA VAT Policies</button>
-      <button class="suggested-btn" onclick="applyQuery('Parliament of Ghana Budget Bill report')">Parliamentary Bills</button>
+      <button class="suggested-btn" onclick="applyQuery('Mahama')">Mahama</button>
+      <button class="suggested-btn" onclick="applyQuery('ECG and dumsor')">ECG & Dumsor</button>
+      <button class="suggested-btn" onclick="applyQuery('Manhyia Palace')">Manhyia Palace</button>
+      <button class="suggested-btn" onclick="applyQuery('solar companies in Accra')">Solar Companies</button>
+      <button class="suggested-btn" onclick="applyQuery('Supreme Court tax judgment GhaLII')">Tax Judgments</button>
+      <button class="suggested-btn" onclick="applyQuery('Asantehene Otumfuo')">Asantehene</button>
+      <button class="suggested-btn" onclick="applyQuery('Akwatia diamond mining')">Akwatia</button>
     </div>
 
     <!-- Telemetry State -->
@@ -765,12 +781,23 @@
     <div id="results-nav" class="results-nav">
       <div>
         <span id="summary-counter" class="summary-metric">0 records</span>
-        <span id="summary-badge" class="ranking-pill" style="margin-left: 8px;">Title Match & Recent First</span>
+        <span id="summary-badge" class="ranking-pill" style="margin-left: 8px;">Unified Search</span>
       </div>
       <button class="btn-new-search" onclick="resetToHome(event)" title="Clear and start a fresh search">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
         <span>New Search</span>
       </button>
+    </div>
+
+    <!-- Dynamic Category Filter Chips -->
+    <div id="filter-chips-bar" class="suggested-bar" style="display: none; margin-bottom: 20px;">
+      <span class="suggested-lbl">Filter:</span>
+      <button class="filter-chip active-filter" data-cat="all" onclick="filterBySource('all')">All Results</button>
+      <button class="filter-chip" data-cat="named_entities" onclick="filterBySource('named_entities')">🇬🇭 Entity Definitions</button>
+      <button class="filter-chip" data-cat="news" onclick="filterBySource('news')">News & Media</button>
+      <button class="filter-chip" data-cat="academic" onclick="filterBySource('academic')">University Theses</button>
+      <button class="filter-chip" data-cat="public_services" onclick="filterBySource('public_services')">Laws & Government</button>
+      <button class="filter-chip" data-cat="business" onclick="filterBySource('business')">Yellow Pages</button>
     </div>
 
     <!-- Results List (Paginated at 10 results per page) -->
@@ -849,78 +876,10 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
       ? window.location.origin
       : 'https://search.ghanaopenai.org';
 
-    let currentMode = 'knowledge'; // 'knowledge' | 'business'
     let allRecords = [];
+    let currentFilter = 'all'; // 'all' | 'named_entities' | 'news' | 'academic' | 'public_services' | 'business'
     let currentPage = 1;
     const PAGE_SIZE = 10;
-
-    const MODE_CONFIG = {
-      knowledge: {
-        placeholder: "Enter policy question, law, thesis topic, or national news query...",
-        badge: "Title Match & Recent First",
-        suggestions: [
-          { label: "President of Ghana", query: "who is the current president of ghana" },
-          { label: "Solar Energy", query: "renewable solar energy battery storage research KNUST" },
-          { label: "Tax Judgments", query: "Supreme Court income tax judgment GhaLII" },
-          { label: "GRA VAT Policies", query: "Ghana Revenue Authority VAT and electronic invoicing requirements" },
-          { label: "Parliamentary Bills", query: "Parliament of Ghana Budget Bill report" }
-        ]
-      },
-      business: {
-        placeholder: "Search product/service to buy or business name (e.g. 'solar panels', 'Ernest Chemists')...",
-        badge: "Ghana Yellow Pages",
-        suggestions: [
-          { label: "Solar Companies Accra", query: "solar companies Accra" },
-          { label: "Pharmacies Kumasi", query: "pharmacies Kumasi" },
-          { label: "Tractor Parts", query: "tractor parts Accra" },
-          { label: "Ernest Chemists", query: "Ernest Chemists" },
-          { label: "Lawyers Takoradi", query: "lawyers Takoradi" }
-        ]
-      },
-      location: {
-        placeholder: "Enter place or landmark name (e.g. 'Manhyia Palace', 'Ridge Hospital', 'Makola Market')...",
-        badge: "Landmark & Surroundings",
-        suggestions: [
-          { label: "Manhyia Palace", query: "Manhyia Palace" },
-          { label: "Ridge Hospital", query: "Ridge Hospital" },
-          { label: "Makola Market", query: "Makola Market" },
-          { label: "Peduase Lodge", query: "Peduase Lodge" },
-          { label: "Cape Coast Castle", query: "Cape Coast Castle" }
-        ]
-      }
-    };
-
-    function switchMode(mode) {
-      if (!MODE_CONFIG[mode]) return;
-      currentMode = mode;
-
-      // Update Tab Styles
-      document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.remove('active'));
-      const activeTab = document.getElementById(`tab-${mode}`);
-      if (activeTab) activeTab.classList.add('active');
-
-      // Update Input Placeholder
-      const input = document.getElementById('query-input');
-      input.placeholder = MODE_CONFIG[mode].placeholder;
-
-      // Update Suggested Buttons
-      const bar = document.getElementById('suggested-bar');
-      bar.innerHTML = `
-        <span class="suggested-lbl">Suggested:</span>
-        ${MODE_CONFIG[mode].suggestions.map(s => `
-          <button class="suggested-btn" onclick="applyQuery('${s.query}')">${s.label}</button>
-        `).join('')}
-      `;
-
-      // Clear previous results
-      document.getElementById('results-stream').innerHTML = '';
-      document.getElementById('results-nav').style.display = 'none';
-      document.getElementById('pagination-controls').style.display = 'none';
-      document.getElementById('telemetry-bar').className = 'telemetry-row';
-      allRecords = [];
-      currentPage = 1;
-      input.focus();
-    }
 
     function openEndpointsModal() {
       document.getElementById('modal-endpoints').style.display = 'flex';
@@ -934,9 +893,11 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
       document.getElementById('query-input').value = '';
       document.getElementById('telemetry-bar').className = 'telemetry-row';
       document.getElementById('results-nav').style.display = 'none';
+      document.getElementById('filter-chips-bar').style.display = 'none';
       document.getElementById('results-stream').innerHTML = '';
       document.getElementById('pagination-controls').style.display = 'none';
       allRecords = [];
+      currentFilter = 'all';
       currentPage = 1;
       document.getElementById('query-input').focus();
     }
@@ -944,6 +905,27 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
     function applyQuery(q) {
       document.getElementById('query-input').value = q;
       executeSearch();
+    }
+
+    function filterBySource(cat) {
+      currentFilter = cat;
+      currentPage = 1;
+      document.querySelectorAll('.filter-chip').forEach(btn => {
+        btn.classList.toggle('active-filter', btn.dataset.cat === cat);
+      });
+      renderCards();
+    }
+
+    function getDisplayRecords() {
+      if (currentFilter === 'all') return allRecords;
+      return allRecords.filter(r => {
+        if (currentFilter === 'named_entities') return r.category === 'named_entities';
+        if (currentFilter === 'news') return r.category === 'news';
+        if (currentFilter === 'academic') return r.category === 'academic';
+        if (currentFilter === 'public_services') return r.category === 'public_services';
+        if (currentFilter === 'business') return r.category === 'business';
+        return true;
+      });
     }
 
     function goToPage(page) {
@@ -956,29 +938,31 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
       const container = document.getElementById('results-stream');
       const pagControls = document.getElementById('pagination-controls');
 
-      const totalItems = allRecords.length;
+      const displayList = getDisplayRecords();
+      const totalItems = displayList.length;
       const totalPages = Math.ceil(totalItems / PAGE_SIZE) || 1;
 
       if (currentPage > totalPages) currentPage = 1;
 
       const startIdx = (currentPage - 1) * PAGE_SIZE;
       const endIdx = Math.min(startIdx + PAGE_SIZE, totalItems);
-      const pageRecords = allRecords.slice(startIdx, endIdx);
+      const pageRecords = displayList.slice(startIdx, endIdx);
 
       if (totalItems > 0) {
         document.getElementById('summary-counter').innerText = `Showing ${startIdx + 1}–${endIdx} of ${totalItems} results`;
-        document.getElementById('summary-badge').innerText = MODE_CONFIG[currentMode].badge;
+        document.getElementById('summary-badge').innerText = 'Unified Search';
       } else {
         document.getElementById('summary-counter').innerText = '0 records found';
       }
 
       if (totalItems === 0) {
-        container.innerHTML = '<div style="background:#fff; border:1px solid var(--surface-border); border-radius:8px; padding:36px; text-align:center; color:var(--text-muted);">No listings or records found for this query.</div>';
+        container.innerHTML = '<div style="background:#fff; border:1px solid var(--surface-border); border-radius:8px; padding:36px; text-align:center; color:var(--text-muted);">No records found matching this filter.</div>';
         pagControls.style.display = 'none';
         return;
       }
 
       container.innerHTML = pageRecords.map(r => {
+        // 1. Landmark Location Card
         if (r.isLandmark) {
           const roadHtml = r.road ? `<span class="landmark-pill road">🛣️ Access: ${r.road}</span>` : '';
           const townHtml = (r.town || r.suburb) ? `<span class="landmark-pill town">🏛️ ${r.suburb ? r.suburb + ', ' : ''}${r.town}</span>` : '';
@@ -1002,6 +986,33 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
 
               <div class="landmark-body-desc" style="margin-bottom:0;">
                 ${r.description.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}
+              </div>
+            </article>
+          `;
+        }
+
+        // 2. Ghanaian Named Entity Definition Card
+        if (r.category === 'named_entities') {
+          const freq = r.metadata?.frequency ? `Corpus Mentions: ${Number(r.metadata.frequency).toLocaleString()}` : 'Ghana NLP Verified Entity';
+          const entityTitle = r.metadata?.phrase || r.title.replace(' (Ghanaian Entity Definition)', '');
+          return `
+            <article class="entity-def-card">
+              <div class="doc-top" style="margin-bottom: 8px;">
+                <div>
+                  <span class="doc-source" style="color: #065f46; font-weight: 700;">🇬🇭 Ghanaian Named Entity Definition</span>
+                  <span class="doc-trail">${freq}</span>
+                </div>
+              </div>
+              <h2 style="font-size: 19px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">
+                ${entityTitle}
+              </h2>
+              <div style="font-size: 14.5px; line-height: 1.65; color: #1e293b; margin-bottom: 12px;">
+                ${r.content || r.snippet}
+              </div>
+              <div class="doc-actions">
+                <a href="${r.url}" target="_blank" rel="noopener noreferrer" class="btn-action" style="background:#10b981; color:#fff; border:1px solid #059669;">
+                  View in Ghana NLP Dataset ↗
+                </a>
               </div>
             </article>
           `;
@@ -1083,22 +1094,18 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
       const telemetryMsg = document.getElementById('telemetry-msg');
       const telemetryTime = document.getElementById('telemetry-time');
       const resultsNav = document.getElementById('results-nav');
+      const filterChipsBar = document.getElementById('filter-chips-bar');
       const resultsStream = document.getElementById('results-stream');
       const pagControls = document.getElementById('pagination-controls');
 
       btn.disabled = true;
       telemetryBar.className = 'telemetry-row active';
-      if (currentMode === 'location') {
-        telemetryMsg.innerText = 'Locating landmark and scanning surroundings...';
-      } else if (currentMode === 'business') {
-        telemetryMsg.innerText = 'Polling Ghana Yellow Pages and commercial directory...';
-      } else {
-        telemetryMsg.innerText = 'Analyzing query with spaCy NLP and polling repositories...';
-      }
+      telemetryMsg.innerText = 'Searching across 104k entity definitions, government, news, research, and directories...';
 
       resultsStream.innerHTML = '';
       pagControls.style.display = 'none';
       resultsNav.style.display = 'none';
+      filterChipsBar.style.display = 'none';
 
       const controller = new AbortController();
       const abortTimer = setTimeout(() => {
@@ -1116,70 +1123,62 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
       }, 100);
 
       try {
-        let endpoint = `${BACKEND_URL}/api/search`;
-        let payload = {};
-
-        if (currentMode === 'location') {
-          endpoint = `${BACKEND_URL}/api/location/lookup`;
-          payload = { landmark: q };
-        } else if (currentMode === 'business') {
-          endpoint = `${BACKEND_URL}/api/business/search`;
-          payload = { query: q, top_k: 30 };
-        } else {
-          endpoint = `${BACKEND_URL}/api/search`;
-          payload = { text: q, top_k: 250, rerank: true };
-        }
-
-        const res = await fetch(endpoint, {
+        // 1. Primary Unified Search: queries named entities, national knowledge, and business directory concurrently
+        const searchPromise = fetch(`${BACKEND_URL}/api/search`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ text: q, top_k: 60, rerank: true }),
           signal: controller.signal
-        });
+        }).then(r => r.json());
+
+        // 2. Parallel Landmark Lookup: checks if query is a place or location
+        const locPromise = fetch(`${BACKEND_URL}/api/location/lookup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ landmark: q }),
+          signal: controller.signal
+        }).then(r => r.json()).catch(() => null);
+
+        const [searchData, locData] = await Promise.all([searchPromise, locPromise]);
 
         clearTimeout(abortTimer);
         clearInterval(clockInterval);
         const elapsed = Math.min(4.0, (performance.now() - t0) / 1000).toFixed(2);
         telemetryTime.innerText = `${elapsed}s`;
 
-        const data = await res.json();
-        currentPage = 1;
+        allRecords = searchData.results || [];
 
-        if (currentMode === 'location') {
-          const loc = data.data || {};
-          if (loc.found) {
-            allRecords = [{
-              isLandmark: true,
-              landmark: loc.landmark,
-              town: loc.town,
-              suburb: loc.suburb,
-              road: loc.road,
-              district: loc.district,
-              region: loc.region,
-              coordinates: loc.coordinates,
-              nearby: loc.nearby_landmarks || [],
-              description: loc.description,
-              url: (loc.coordinates?.latitude && loc.coordinates?.longitude)
-                ? `https://www.openstreetmap.org/?mlat=${loc.coordinates.latitude}&mlon=${loc.coordinates.longitude}#map=16/${loc.coordinates.latitude}/${loc.coordinates.longitude}`
-                : '',
-              source: 'OpenStreetMap (Ghana) & Landmark Proximity',
-            }];
-            telemetryMsg.innerText = `Located: ${loc.landmark} (${loc.town || loc.region || 'Ghana'})`;
-          } else {
-            allRecords = [];
-            telemetryMsg.innerText = `Could not locate '${q}' in Ghana map records.`;
-          }
-        } else if (currentMode === 'business') {
-          allRecords = data.results || [];
-          telemetryMsg.innerText = `Retrieved ${allRecords.length} verified commercial listings`;
-        } else {
-          allRecords = data.results || [];
-          const chunks = (data.extracted_terms?.clean_noun_chunks || []).join(', ');
-          telemetryMsg.innerText = `Retrieved ${allRecords.length} records • Terms: [${chunks || 'general'}]`;
+        // If landmark location was found, prepend it to the top
+        if (locData && locData.data && locData.data.found) {
+          const loc = locData.data;
+          allRecords.unshift({
+            isLandmark: true,
+            category: 'landmark',
+            landmark: loc.landmark,
+            town: loc.town,
+            suburb: loc.suburb,
+            road: loc.road,
+            district: loc.district,
+            region: loc.region,
+            coordinates: loc.coordinates,
+            description: loc.description,
+            url: (loc.coordinates?.latitude && loc.coordinates?.longitude)
+              ? `https://www.openstreetmap.org/?mlat=${loc.coordinates.latitude}&mlon=${loc.coordinates.longitude}#map=16/${loc.coordinates.latitude}/${loc.coordinates.longitude}`
+              : '',
+            source: 'OpenStreetMap (Ghana) & Landmark Positioning',
+          });
         }
+
+        currentPage = 1;
+        currentFilter = 'all';
+
+        const chunks = (searchData.extracted_terms?.clean_noun_chunks || []).join(', ');
+        telemetryMsg.innerText = `Retrieved ${allRecords.length} records across all sources • Terms: [${chunks || 'general'}]`;
 
         btn.disabled = false;
         resultsNav.style.display = 'flex';
+        filterChipsBar.style.display = 'flex';
+        document.querySelectorAll('.filter-chip').forEach(b => b.classList.toggle('active-filter', b.dataset.cat === 'all'));
         renderCards();
 
       } catch (err) {

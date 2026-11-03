@@ -187,8 +187,11 @@ class TitleFirstReranker:
             ts = parse_date_timestamp(item.published_date)
             r_bonus = compute_recency_bonus(ts, now_ts)
 
-            # Strictly title-score + recency bonus (Zero points for body/snippet text)
-            composite_score = round(title_score + r_bonus, 2)
+            # 5. Authoritative Entity Definition Boost (Ghana NLP curated definitions take precedence)
+            def_boost = 120.0 if item.category == "named_entities" else 0.0
+
+            # Strictly title-score + recency bonus + definition boost
+            composite_score = round(title_score + r_bonus + def_boost, 2)
 
             item.score = composite_score
             item.metadata["ranking_engine"] = "cpu_title_only_recent_first"

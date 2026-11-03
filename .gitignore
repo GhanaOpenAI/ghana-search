@@ -33,5 +33,6 @@ ENV/
 *.sqlite3
 *.db-wal
 *.db-shm
+!ghana_mcp/data/entity_definitions.db
 session-*.md
 data/crawler*

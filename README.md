@@ -14,8 +14,9 @@ Live search portal: [https://search.ghanaopenai.org](https://search.ghanaopenai.
 
 ## Supported Sources
 
-Ghana Search queries the public search APIs of over 430 Ghanaian institutions and repositories, returning direct content URLs and downloadable PDFs rather than generic homepages:
+Ghana Search queries the public search APIs and pre-indexed databases of over 430 Ghanaian institutions and repositories, returning direct content URLs and downloadable PDFs rather than generic homepages:
 
+- **Ghanaian Named Entity Definitions (104,000+ Concepts)**: Pre-indexed factual definitions from Ghana NLP covering national leaders, institutions, towns, traditional authorities, festivals, and cultural concepts, resolved in < 0.5ms offline and online.
 - **Government Portals (164 websites)**: Direct search across ministries, departments, and agencies including the Ghana Revenue Authority (GRA), Food and Drugs Authority (FDA), Ghana Standards Authority (GSA), Ministry of Lands and Natural Resources, Lands Commission, and local assemblies.
 - **District Assemblies (GhanaDistricts)**: News, development projects, and assembly reports across all 261 Ghanaian district assemblies.
 - **Court Judgments and Legislation (GhaLII)**: Supreme Court, Court of Appeal, High Court rulings, Acts of Parliament, and Decrees with direct document and source download links.
@@ -29,14 +30,12 @@ Ghana Search queries the public search APIs of over 430 Ghanaian institutions an
 
 ## Web Search Interface
 
-Visit [https://search.ghanaopenai.org](https://search.ghanaopenai.org) to search directly from your browser with two specialized modes:
+Visit [https://search.ghanaopenai.org](https://search.ghanaopenai.org) to search directly from your browser:
 
-1. **National Knowledge (Core)**:
-   - Queries 164 verified government portals, university thesis repositories (KNUST/UG/UCC), Supreme Court rulings (GhaLII), parliamentary records, and national news networks.
-   - Title-first & recent-first ranking with direct PDF download links.
-
-2. **Business Directory (Yellow Pages)**:
-   - **Two-way lookup**: Search by product/commodity to find suppliers and stores (e.g. *"solar panels"*, *"tractor parts"*, *"pharmacies Kumasi"*), OR search by business name (e.g. *"Ernest Chemists"*, *"Solar 4 Ghana"*) to get branches, physical addresses, and direct phone call links.
+- **Single Unified Search Box**: Type any question, leader, institution, concept, place, product, or topic.
+- **Multi-Source Synthesis**: Returns matching **Ghanaian Entity Definitions**, **Landmark Positioning Cards**, **Court Judgments**, **Research Theses**, **News Reports**, and **Business Contacts** all in one feed.
+- **Instant Category Filtering**: Use on-the-fly filter chips (*All Results*, *Entity Definitions*, *News & Media*, *University Theses*, *Laws & Government*, *Yellow Pages*) to isolate specific sources without re-querying.
+- **Title-First & Recent-First Ranking**: Ensures high-signal exact matches and fresher articles are prioritized.
 
 ---
 

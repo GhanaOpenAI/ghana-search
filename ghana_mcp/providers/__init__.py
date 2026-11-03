@@ -6,6 +6,7 @@ from ghana_mcp.providers.academic import AcademicProvider
 from ghana_mcp.providers.public_services import PublicServicesProvider
 from ghana_mcp.providers.business import BusinessDirectoryProvider
 from ghana_mcp.providers.location_finder import LocationFinderProvider
+from ghana_mcp.providers.entity_definitions import EntityDefinitionsProvider
 
 __all__ = [
     "SearchResult",
@@ -16,4 +17,5 @@ __all__ = [
     "PublicServicesProvider",
     "BusinessDirectoryProvider",
     "LocationFinderProvider",
+    "EntityDefinitionsProvider",
 ]
