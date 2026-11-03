@@ -14,6 +14,7 @@ from ghana_mcp.server import (
     ghana_wikipedia_search,
     ghana_business_directory,
     ghana_business_search,
+    ghana_location_info,
 )
 
 
@@ -73,6 +74,17 @@ def test_ghana_business_search_by_name():
     assert isinstance(data, list)
 
 
+def test_ghana_location_info_by_name():
+    """Verify landmark location description tool."""
+    raw = ghana_location_info("Ridge Hospital")
+    assert raw is not None
+    data = json.loads(raw)
+    assert isinstance(data, dict)
+    assert data.get("found") is True
+    assert "description" in data
+    assert "Accra" in data.get("description", "")
+
+
 def test_all_tools_have_all_four_annotations():
     """Verify all 4 hints (readOnlyHint, destructiveHint, idempotentHint, openWorldHint)
     are explicitly defined as booleans on every registered tool.
@@ -99,5 +111,6 @@ if __name__ == "__main__":
     test_ghana_wikipedia_search_by_name()
     test_ghana_business_directory_by_name()
     test_ghana_business_search_by_name()
+    test_ghana_location_info_by_name()
     asyncio.run(test_all_tools_have_all_four_annotations())
     print("All tool tests and annotation verification passed successfully!")

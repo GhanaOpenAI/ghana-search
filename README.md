@@ -66,6 +66,37 @@ curl -X POST https://search.ghanaopenai.org/api/business/search \
   }'
 ```
 
+### 3. Landmark Location & Surroundings Lookup (`POST /api/location/lookup`)
+
+Descriptive, spoken-style positioning: returns which town/city, neighbourhood/suburb, and region a place is located in, its main access road, and prominent landmarks near it (no turn-by-turn navigation):
+
+```bash
+curl -X POST https://search.ghanaopenai.org/api/location/lookup \
+  -H "Content-Type: application/json" \
+  -d '{"landmark": "Ridge Hospital"}'
+```
+
+```json
+{
+  "status": "success",
+  "data": {
+    "landmark": "Ridge Hospital",
+    "found": true,
+    "town": "Accra",
+    "suburb": "North Ridge",
+    "road": "Castle Road",
+    "region": "Greater Accra Region",
+    "nearby_landmarks": [
+      "CalBank",
+      "Asylum Down",
+      "Efua Sutherland Children's Park",
+      "Ghana School of Law"
+    ],
+    "description": "**Ridge Hospital** is located in North Ridge, Accra, Greater Accra Region. It is situated along or just off **Castle Road**. Nearby landmarks and prominent places include: **CalBank, Asylum Down, Efua Sutherland Children's Park, Ghana School of Law**."
+  }
+}
+```
+
 ### Request Parameters (`POST /api/search`)
 
 | Parameter | Type | Default | Description |
@@ -208,18 +239,20 @@ if response.choices[0].message.tool_calls:
 
 ### 3. Model Context Protocol (MCP) Remote Endpoint & Tools
 
-Ghana Search provides two distinct, dedicated MCP tools:
+Ghana Search provides three distinct, dedicated MCP tools:
 
 | MCP Tool Name | Functionality | Expected Input | Example Output |
 | :--- | :--- | :--- | :--- |
 | `ghana_search` | Verified national knowledge (gov, laws, theses, news) | Question or policy topic | Official acts, thesis abstracts, news reports |
 | `ghana_business_directory` | Yellow pages & product supplier locator | Product, service, or business name | Matching businesses, locations, and phone numbers |
+| `ghana_location_info` | Landmark positioning & surroundings | Place, facility, or landmark name | Town/city, suburb, access road, and nearby places |
 
 For MCP clients and agent orchestrators connecting over Server-Sent Events (SSE):
 - **SSE Endpoint**: `https://search.ghanaopenai.org/mcp/sse`
 - **Tool Schema Endpoint**: `https://search.ghanaopenai.org/api/tools`
 - **Tool Execution Endpoint**: `https://search.ghanaopenai.org/api/tools/execute`
 - **Commercial Directory Endpoint**: `https://search.ghanaopenai.org/api/business/search`
+- **Location Lookup Endpoint**: `https://search.ghanaopenai.org/api/location/lookup`
 
 ---
 

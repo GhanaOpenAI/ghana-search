@@ -23,6 +23,7 @@ from ghana_mcp.providers.academic import AcademicProvider
 from ghana_mcp.providers.public_services import PublicServicesProvider
 from ghana_mcp.providers.ghalii import GhaLIIProvider
 from ghana_mcp.providers.business import BusinessDirectoryProvider
+from ghana_mcp.providers.location_finder import LocationFinderProvider
 from ghana_mcp.providers.base import SearchResult
 from ghana_mcp.reranker import reranker
 from ghana_mcp.nlp import extract_search_terms
@@ -38,6 +39,7 @@ academic_provider = AcademicProvider()
 public_provider = PublicServicesProvider()
 ghalii_provider = GhaLIIProvider()
 business_provider = BusinessDirectoryProvider()
+location_finder = LocationFinderProvider()
 
 # Offline Mode Flag (air-gapped / local cache operation)
 OFFLINE_MODE = (
@@ -361,6 +363,22 @@ def ghana_business_search(text: str, top_k: int = 15) -> str:
     return ghana_business_directory(query=text, top_k=top_k)
 
 
+@mcp.tool(annotations=MCP_TOOL_ANNOTATIONS)
+def ghana_location_info(
+    landmark: str,
+) -> str:
+    """Describe where a Ghanaian landmark, hospital, market, institution, or place is located.
+    Tells you which town/city, neighbourhood/suburb, and region it is in, its main access road,
+    and prominent landmarks or areas near it.
+    Does not give turn-by-turn directions.
+
+    Args:
+        landmark: Place, institution, market, or landmark name (e.g. 'Ridge Hospital', 'Manhyia Palace', 'Makola Market', 'Peduase Lodge', 'KNUST')
+    """
+    res = location_finder.lookup_location(landmark)
+    return json.dumps(res, indent=2)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown lifecycle cleanly."""
@@ -484,6 +502,10 @@ class BusinessSearchRequest(BaseModel):
     top_k: int = Field(default=15, ge=1, le=50, description="Number of business listings to return")
 
 
+class LocationLookupRequest(BaseModel):
+    landmark: str = Field(..., description="Name of the place, facility, market, or landmark in Ghana")
+
+
 @app.post("/api/business/search")
 async def api_business_search(req: BusinessSearchRequest = Body(...)):
     """Search Ghana Business Directory & Yellow Pages for companies or product suppliers (enforces strict 4.0s timeout)."""
@@ -506,6 +528,27 @@ async def api_business_search(req: BusinessSearchRequest = Body(...)):
         "query": req.query,
         "count": len(results),
         "results": [r.to_dict() for r in results],
+    }
+
+
+@app.post("/api/location/lookup")
+async def api_location_lookup(req: LocationLookupRequest = Body(...)):
+    """Describe where a Ghanaian landmark is located (town, neighbourhood, main road, nearby landmarks)."""
+    try:
+        data = await asyncio.wait_for(
+            asyncio.to_thread(location_finder.lookup_location, landmark_name=req.landmark),
+            timeout=MAX_SEARCH_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        data = {
+            "landmark": req.landmark,
+            "found": False,
+            "description": f"Location lookup for '{req.landmark}' timed out.",
+        }
+
+    return {
+        "status": "success",
+        "data": data,
     }
 
 
@@ -592,6 +635,33 @@ GHANA_SEARCH_OPENAI_TOOLS = [
             "openWorldHint": True,
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "ghana_location_info",
+            "description": (
+                "Describe where a Ghanaian landmark, market, hospital, institution, or place is located. "
+                "Tells you which town/city, neighbourhood/suburb, and region it is in, its main access road, "
+                "and prominent landmarks or areas near it. Does not give turn-by-turn navigation."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "landmark": {
+                        "type": "string",
+                        "description": "Name of the place, facility, market, or landmark in Ghana (e.g. 'Ridge Hospital', 'Manhyia Palace', 'Makola Market', 'Peduase Lodge', 'KNUST').",
+                    },
+                },
+                "required": ["landmark"],
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    },
 ]
 
 
@@ -636,7 +706,21 @@ async def api_tools_execute(req: ToolExecutionRequest = Body(...)):
 
     tool_name = req.name or "ghana_search"
 
-    # --- 1. Business Directory Tool Execution ---
+    # --- 1. Landmark Location Info Tool Execution ---
+    if tool_name in ("ghana_location_info", "ghana_landmark_locator", "location_lookup"):
+        place = args.get("landmark") or args.get("place") or args.get("text") or args.get("query") or req.text or ""
+        data = await asyncio.to_thread(location_finder.lookup_location, landmark_name=place)
+        llm_context_output = data.get("description") or f"Could not locate '{place}' in Ghana."
+        return {
+            "status": "success",
+            "tool_name": tool_name,
+            "landmark": place,
+            "data": data,
+            "output": llm_context_output,
+            "content": llm_context_output,
+        }
+
+    # --- 2. Business Directory Tool Execution ---
     if tool_name in ("ghana_business_directory", "ghana_business_search"):
         biz_query = args.get("query") or args.get("text") or req.text or ""
         top_k = int(args.get("top_k") or req.top_k or 15)
@@ -778,6 +862,7 @@ async def api_health():
             "mcp_sse": "/mcp/sse",
             "rest_search": "/api/search",
             "rest_business_search": "/api/business/search",
+            "rest_location_lookup": "/api/location/lookup",
             "tools_schema": "/api/tools",
             "tools_execute": "/api/tools/execute",
             "analytics_stats": "/api/analytics/stats",
