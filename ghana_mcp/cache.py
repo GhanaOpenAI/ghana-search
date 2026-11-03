@@ -69,6 +69,25 @@ class QueryCache:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_url_cache_source ON url_content_cache(source);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_url_cache_category ON url_content_cache(category);")
 
+            # 3. Permanent Landmark Location Cache
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS landmark_cache (
+                    query_key TEXT PRIMARY KEY,
+                    name TEXT,
+                    town TEXT,
+                    suburb TEXT,
+                    road TEXT,
+                    district TEXT,
+                    region TEXT,
+                    lat REAL,
+                    lon REAL,
+                    nearby_landmarks_json TEXT,
+                    description TEXT,
+                    cached_at REAL
+                );
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_landmark_name ON landmark_cache(name);")
+
         # Automatically seed bundled offline knowledge packs into url_content_cache on startup
         self._seed_bundled_offline_packs()
 
@@ -494,6 +513,104 @@ class QueryCache:
             pass
 
         return results
+
+    def get_landmark(self, query: str) -> Optional[Dict[str, Any]]:
+        """Retrieve permanently cached landmark location information if available."""
+        q_norm = query.lower().strip()
+        if not q_norm:
+            return None
+
+        try:
+            with self._get_connection() as conn:
+                row = conn.execute(
+                    """
+                    SELECT name, town, suburb, road, district, region, lat, lon, nearby_landmarks_json, description
+                    FROM landmark_cache
+                    WHERE query_key = ? OR lower(name) = ?
+                    LIMIT 1
+                    """,
+                    (q_norm, q_norm),
+                ).fetchone()
+
+                if not row:
+                    # Partial match
+                    row = conn.execute(
+                        """
+                        SELECT name, town, suburb, road, district, region, lat, lon, nearby_landmarks_json, description
+                        FROM landmark_cache
+                        WHERE lower(name) LIKE ?
+                        LIMIT 1
+                        """,
+                        (f"%{q_norm}%",),
+                    ).fetchone()
+
+                if row:
+                    nearby = json.loads(row["nearby_landmarks_json"] or "[]")
+                    return {
+                        "landmark": row["name"],
+                        "found": True,
+                        "town": row["town"] or row["suburb"],
+                        "suburb": row["suburb"],
+                        "road": row["road"],
+                        "district": row["district"],
+                        "region": row["region"],
+                        "coordinates": {"latitude": row["lat"], "longitude": row["lon"]},
+                        "nearby_landmarks": nearby,
+                        "description": row["description"],
+                    }
+        except Exception:
+            pass
+        return None
+
+    def save_landmark(self, query: str, data: Dict[str, Any]):
+        """Permanently store landmark location information."""
+        q_norm = query.lower().strip()
+        if not q_norm or not data.get("found"):
+            return
+
+        name = data.get("landmark") or query.strip()
+        coords = data.get("coordinates") or {}
+        lat = coords.get("latitude") or coords.get("lat") or 0.0
+        lon = coords.get("longitude") or coords.get("lon") or 0.0
+        nearby_json = json.dumps(data.get("nearby_landmarks") or [])
+
+        try:
+            with self._get_connection() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO landmark_cache (
+                        query_key, name, town, suburb, road, district, region, lat, lon, nearby_landmarks_json, description, cached_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(query_key) DO UPDATE SET
+                        name = excluded.name,
+                        town = excluded.town,
+                        suburb = excluded.suburb,
+                        road = excluded.road,
+                        district = excluded.district,
+                        region = excluded.region,
+                        lat = excluded.lat,
+                        lon = excluded.lon,
+                        nearby_landmarks_json = excluded.nearby_landmarks_json,
+                        description = excluded.description,
+                        cached_at = excluded.cached_at
+                    """,
+                    (
+                        q_norm,
+                        name,
+                        data.get("town") or "",
+                        data.get("suburb") or "",
+                        data.get("road") or "",
+                        data.get("district") or "",
+                        data.get("region") or "",
+                        lat,
+                        lon,
+                        nearby_json,
+                        data.get("description") or "",
+                        time.time(),
+                    ),
+                )
+        except Exception:
+            pass
 
     def clear_expired(self):
         """Remove query cache entries older than 24 hours (preserves permanent URL content cache)."""
