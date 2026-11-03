@@ -59,9 +59,9 @@ class EntityDefinitionsProvider(BaseProvider):
                     results.append(
                         SearchResult(
                             title=f"{p} (Ghanaian Entity Definition)",
-                            url="https://huggingface.co/datasets/ghananlpcommunity/ghana-named-entities",
+                            url="",
                             snippet=row["description"],
-                            source="Ghana Named Entities (Ghana NLP)",
+                            source="Ghana Named Entities",
                             category=self.category,
                             content=row["description"],
                             published_date="",
@@ -93,9 +93,9 @@ class EntityDefinitionsProvider(BaseProvider):
                             results.append(
                                 SearchResult(
                                     title=f"{p} (Ghanaian Entity Definition)",
-                                    url="https://huggingface.co/datasets/ghananlpcommunity/ghana-named-entities",
+                                    url="",
                                     snippet=row["description"],
-                                    source="Ghana Named Entities (Ghana NLP)",
+                                    source="Ghana Named Entities",
                                     category=self.category,
                                     content=row["description"],
                                     published_date="",

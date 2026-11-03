@@ -793,7 +793,8 @@
     <div id="filter-chips-bar" class="suggested-bar" style="display: none; margin-bottom: 20px;">
       <span class="suggested-lbl">Filter:</span>
       <button class="filter-chip active-filter" data-cat="all" onclick="filterBySource('all')">All Results</button>
-      <button class="filter-chip" data-cat="named_entities" onclick="filterBySource('named_entities')">🇬🇭 Entity Definitions</button>
+      <button class="filter-chip" data-cat="named_entities" onclick="filterBySource('named_entities')">Entity Definitions</button>
+      <button class="filter-chip" data-cat="location" onclick="filterBySource('location')">📍 Landmark Locations</button>
       <button class="filter-chip" data-cat="news" onclick="filterBySource('news')">News & Media</button>
       <button class="filter-chip" data-cat="academic" onclick="filterBySource('academic')">University Theses</button>
       <button class="filter-chip" data-cat="public_services" onclick="filterBySource('public_services')">Laws & Government</button>
@@ -920,6 +921,7 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
       if (currentFilter === 'all') return allRecords;
       return allRecords.filter(r => {
         if (currentFilter === 'named_entities') return r.category === 'named_entities';
+        if (currentFilter === 'location') return r.category === 'location' || r.category === 'landmark' || r.isLandmark;
         if (currentFilter === 'news') return r.category === 'news';
         if (currentFilter === 'academic') return r.category === 'academic';
         if (currentFilter === 'public_services') return r.category === 'public_services';
@@ -963,16 +965,19 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
 
       container.innerHTML = pageRecords.map(r => {
         // 1. Landmark Location Card
-        if (r.isLandmark) {
-          const roadHtml = r.road ? `<span class="landmark-pill road">🛣️ Access: ${r.road}</span>` : '';
-          const townHtml = (r.town || r.suburb) ? `<span class="landmark-pill town">🏛️ ${r.suburb ? r.suburb + ', ' : ''}${r.town}</span>` : '';
-          const regHtml = r.region ? `<span class="landmark-pill">🇬🇭 ${r.region}</span>` : '';
+        if (r.isLandmark || r.category === 'location' || r.category === 'landmark') {
+          const lm = r.metadata || r;
+          const roadHtml = lm.road ? `<span class="landmark-pill road">🛣️ Access: ${lm.road}</span>` : '';
+          const townHtml = (lm.town || lm.suburb) ? `<span class="landmark-pill town">🏛️ ${lm.suburb ? lm.suburb + ', ' : ''}${lm.town || ''}</span>` : '';
+          const regHtml = lm.region ? `<span class="landmark-pill">🇬🇭 ${lm.region}</span>` : '';
+          const landmarkName = lm.landmark || (r.title ? r.title.replace('📍 ', '').replace(' (Landmark Location)', '') : 'Landmark Location');
+          const descText = lm.description || r.snippet || '';
 
           return `
             <article class="landmark-result-card">
               <div class="landmark-header">
                 <div>
-                  <h2 class="landmark-title">📍 ${r.landmark}</h2>
+                  <h2 class="landmark-title">📍 ${landmarkName}</h2>
                   <div class="doc-trail" style="margin-left:0; margin-top:4px;">Landmark Positioning • ${r.source}</div>
                 </div>
                 ${r.url ? `<a href="${r.url}" target="_blank" rel="noopener noreferrer" class="btn-action btn-pdf">View on Map ↗</a>` : ''}
@@ -985,7 +990,7 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
               </div>
 
               <div class="landmark-body-desc" style="margin-bottom:0;">
-                ${r.description.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}
+                ${descText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}
               </div>
             </article>
           `;
@@ -993,26 +998,21 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
 
         // 2. Ghanaian Named Entity Definition Card
         if (r.category === 'named_entities') {
-          const freq = r.metadata?.frequency ? `Corpus Mentions: ${Number(r.metadata.frequency).toLocaleString()}` : 'Ghana NLP Verified Entity';
+          const freq = r.metadata?.frequency ? `Corpus Mentions: ${Number(r.metadata.frequency).toLocaleString()}` : '';
           const entityTitle = r.metadata?.phrase || r.title.replace(' (Ghanaian Entity Definition)', '');
           return `
             <article class="entity-def-card">
               <div class="doc-top" style="margin-bottom: 8px;">
                 <div>
-                  <span class="doc-source" style="color: #065f46; font-weight: 700;">🇬🇭 Ghanaian Named Entity Definition</span>
-                  <span class="doc-trail">${freq}</span>
+                  <span class="doc-source" style="color: #065f46; font-weight: 700;">Ghanaian Named Entity Definition</span>
+                  ${freq ? `<span class="doc-trail">${freq}</span>` : ''}
                 </div>
               </div>
               <h2 style="font-size: 19px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">
                 ${entityTitle}
               </h2>
-              <div style="font-size: 14.5px; line-height: 1.65; color: #1e293b; margin-bottom: 12px;">
+              <div style="font-size: 14.5px; line-height: 1.65; color: #1e293b; margin-bottom: 4px;">
                 ${r.content || r.snippet}
-              </div>
-              <div class="doc-actions">
-                <a href="${r.url}" target="_blank" rel="noopener noreferrer" class="btn-action" style="background:#10b981; color:#fff; border:1px solid #059669;">
-                  View in Ghana NLP Dataset ↗
-                </a>
               </div>
             </article>
           `;
@@ -1148,25 +1148,28 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
 
         allRecords = searchData.results || [];
 
-        // If landmark location was found, prepend it to the top
+        // If landmark location was found, prepend it to the top if not already present
         if (locData && locData.data && locData.data.found) {
           const loc = locData.data;
-          allRecords.unshift({
-            isLandmark: true,
-            category: 'landmark',
-            landmark: loc.landmark,
-            town: loc.town,
-            suburb: loc.suburb,
-            road: loc.road,
-            district: loc.district,
-            region: loc.region,
-            coordinates: loc.coordinates,
-            description: loc.description,
-            url: (loc.coordinates?.latitude && loc.coordinates?.longitude)
-              ? `https://www.openstreetmap.org/?mlat=${loc.coordinates.latitude}&mlon=${loc.coordinates.longitude}#map=16/${loc.coordinates.latitude}/${loc.coordinates.longitude}`
-              : '',
-            source: 'OpenStreetMap (Ghana) & Landmark Positioning',
-          });
+          const alreadyPresent = allRecords.some(r => r.category === 'location' || (r.title && r.title.includes(loc.landmark)));
+          if (!alreadyPresent) {
+            allRecords.unshift({
+              isLandmark: true,
+              category: 'location',
+              landmark: loc.landmark,
+              town: loc.town,
+              suburb: loc.suburb,
+              road: loc.road,
+              district: loc.district,
+              region: loc.region,
+              coordinates: loc.coordinates,
+              description: loc.description,
+              url: (loc.coordinates?.latitude && loc.coordinates?.longitude)
+                ? `https://www.openstreetmap.org/?mlat=${loc.coordinates.latitude}&mlon=${loc.coordinates.longitude}#map=16/${loc.coordinates.latitude}/${loc.coordinates.longitude}`
+                : '',
+              source: 'OpenStreetMap (Ghana) & Landmark Positioning',
+            });
+          }
         }
 
         currentPage = 1;

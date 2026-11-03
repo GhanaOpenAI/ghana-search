@@ -89,8 +89,8 @@ def _execute_search(
     lemma_chunks = nlp_data.get("lemma_chunks", [])
     nouns = nlp_data.get("nouns", [])
 
-    # Unified default: searches across all verified sources (entity definitions, knowledge, and business directory)
-    cats = categories or ["named_entities", "news", "wikipedia", "academic", "public_services", "business"]
+    # Unified default: searches across all verified sources (entity definitions, location, knowledge, and business directory)
+    cats = categories or ["named_entities", "location", "news", "wikipedia", "academic", "public_services", "business"]
 
     # 2. Check 24-hour cache first (instant response for repeated queries)
     cached_results = search_cache.get(text, cats, top_k)
@@ -121,12 +121,32 @@ def _execute_search(
     # Offline Mode: Search exclusively across local SQLite cache database with 0 network calls
     if OFFLINE_MODE:
         offline_tokens = clean_chunks if clean_chunks else nouns
-        offline_candidates = search_cache.search_offline(offline_tokens, cats, limit=top_k * 3)
+        offline_cats = [c for c in cats if c not in ("named_entities", "location")]
+        offline_candidates = search_cache.search_offline(offline_tokens, offline_cats, limit=top_k * 3) if offline_cats else []
 
         # Pull matching Ghanaian named entity definitions (0ms offline SQLite lookup)
         if "named_entities" in cats:
             entity_defs = entity_provider.search(search_keywords, limit=2)
             offline_candidates = entity_defs + offline_candidates
+
+        # Pull matching landmark location if query is a location/landmark
+        if "location" in cats:
+            loc = location_finder.lookup_location(primary_query)
+            if loc and loc.get("found") and loc.get("coordinates"):
+                coords = loc["coordinates"]
+                offline_candidates.insert(
+                    0,
+                    SearchResult(
+                        title=f"📍 {loc['landmark']} (Landmark Location)",
+                        url=f"https://www.openstreetmap.org/?mlat={coords['latitude']}&mlon={coords['longitude']}#map=16/{coords['latitude']}/{coords['longitude']}",
+                        snippet=loc["description"],
+                        source="OpenStreetMap (Ghana)",
+                        category="location",
+                        content=loc["description"],
+                        score=380.0,
+                        metadata=loc,
+                    ),
+                )
 
         if rerank and offline_candidates:
             ranked = reranker.rerank(
@@ -165,8 +185,10 @@ def _execute_search(
         candidates.extend(entity_defs)
 
     # 4. Instantly pull matching pre-cached verified knowledge from local corpus (0ms SQLite lookup)
-    cached_candidates = search_cache.search_offline(search_keywords, cats, limit=per_provider_limit * 2)
-    candidates.extend(cached_candidates)
+    cached_cats = [c for c in cats if c not in ("named_entities", "location")]
+    if cached_cats:
+        cached_candidates = search_cache.search_offline(search_keywords, cached_cats, limit=per_provider_limit * 2)
+        candidates.extend(cached_candidates)
 
     # 5. Parallel asynchronous dispatch across all selected providers
     tasks = []
@@ -181,6 +203,25 @@ def _execute_search(
         tasks.append(("ghalii", lambda: ghalii_provider.search(search_keywords, limit=min(per_provider_limit, 6))))
     if "business" in cats:
         tasks.append(("business", lambda: business_provider.search(search_keywords, limit=per_provider_limit)))
+    if "location" in cats:
+        def _loc_task():
+            loc = location_finder.lookup_location(primary_query)
+            if loc and loc.get("found") and loc.get("coordinates"):
+                coords = loc["coordinates"]
+                return [
+                    SearchResult(
+                        title=f"📍 {loc['landmark']} (Landmark Location)",
+                        url=f"https://www.openstreetmap.org/?mlat={coords['latitude']}&mlon={coords['longitude']}#map=16/{coords['latitude']}/{coords['longitude']}",
+                        snippet=loc["description"],
+                        source="OpenStreetMap (Ghana)",
+                        category="location",
+                        content=loc["description"],
+                        score=380.0,
+                        metadata=loc,
+                    )
+                ]
+            return []
+        tasks.append(("location", _loc_task))
 
     from concurrent.futures import ThreadPoolExecutor, wait
     executor = ThreadPoolExecutor(max_workers=len(tasks) or 1)
@@ -277,14 +318,14 @@ def ghana_search(
     categories: Optional[List[str]] = None,
     rerank: bool = True,
 ) -> str:
-    """Search all Ghanaian sources with a single query: named entity definitions (Ghana NLP), government agencies, court rulings, university research, news, and business directories.
+    """Search all Ghanaian sources with a single query: named entity definitions (Ghana NLP), landmark locations & access roads (OpenStreetMap), government agencies, court rulings, university research, news, and business directories.
     Takes free-form text input, queries local APIs and curated Ghanaian knowledge databases, and ranks results by relevance.
     All searches strictly enforce a 4.0-second timeout budget across all providers.
 
     Args:
-        text: Natural language query (e.g. "Who is Mahama?", "Solar energy companies in Accra", "Ghana Revenue Authority VAT requirements", "KNUST battery research")
+        text: Natural language query (e.g. "Who is Mahama?", "Solar energy companies in Accra", "Where is Ridge Hospital?", "Ghana Revenue Authority VAT requirements", "KNUST battery research")
         top_k: Number of most relevant results to return (default: 50, maximum: total retrieved candidates)
-        categories: Optional category filter: ["named_entities", "news", "academic", "public_services", "wikipedia", "business"]. When omitted, searches all sources unified.
+        categories: Optional category filter: ["named_entities", "location", "news", "academic", "public_services", "wikipedia", "business"]. When omitted, searches all sources unified.
         rerank: Whether to rerank candidates by terminology and recency (default: True)
     """
     results = _execute_search(text, categories, top_k, rerank)
@@ -432,7 +473,7 @@ class SearchRequest(BaseModel):
     text: str = Field(..., description="Free-form query text input")
     categories: Optional[List[str]] = Field(
         default=None,
-        description="Categories to search (defaults to all sources unified: named_entities, news, wikipedia, academic, public_services, business. Or pass specific categories to filter)",
+        description="Categories to search (defaults to all sources unified: named_entities, location, news, wikipedia, academic, public_services, business. Or pass specific categories to filter)",
     )
     top_k: int = Field(default=50, ge=1, le=500, description="Number of results to return (default: 50)")
     rerank: bool = Field(default=True, description="Enable hybrid semantic reranking")
@@ -574,10 +615,10 @@ GHANA_SEARCH_OPENAI_TOOLS = [
             "name": "ghana_search",
             "description": (
                 "Search all Ghanaian sources unified with a single query: Ghanaian named entity definitions (Ghana NLP), "
-                "government ministries, departments and agencies (GRA, FDA, GSA), district assemblies (261 MMDAs), "
-                "court judgments and legislation (GhaLII), parliamentary bills, university thesis archives "
+                "landmark locations and access roads (OpenStreetMap), government ministries, departments and agencies (GRA, FDA, GSA), "
+                "district assemblies (261 MMDAs), court judgments and legislation (GhaLII), parliamentary bills, university thesis archives "
                 "(KNUST, University of Ghana, UCC), national news platforms, and Yellow Pages commercial business directories. "
-                "Returns factual titles, definitions, source agency, publication dates, excerpts, and direct links."
+                "Returns factual titles, definitions, geographic positioning, source agency, publication dates, excerpts, and direct links."
             ),
             "parameters": {
                 "type": "object",
@@ -586,7 +627,7 @@ GHANA_SEARCH_OPENAI_TOOLS = [
                         "type": "string",
                         "description": (
                             "Natural language question, entity, or search topic regarding Ghana "
-                            "(e.g., 'Who is Mahama?', 'ECG power outage', 'GRA VAT requirements', 'KNUST solar battery storage research', "
+                            "(e.g., 'Who is Mahama?', 'Ridge Hospital', 'ECG power outage', 'GRA VAT requirements', 'KNUST solar battery storage research', "
                             "'solar companies in Accra', 'Supreme Court election petition judgments')."
                         ),
                     },
@@ -594,7 +635,7 @@ GHANA_SEARCH_OPENAI_TOOLS = [
                         "type": "array",
                         "items": {
                             "type": "string",
-                            "enum": ["named_entities", "news", "academic", "public_services", "wikipedia", "business"],
+                            "enum": ["named_entities", "location", "news", "academic", "public_services", "wikipedia", "business"],
                         },
                         "description": "Optional category filter. When omitted, searches across all Ghanaian sources unified.",
                     },

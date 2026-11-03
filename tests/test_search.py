@@ -50,6 +50,16 @@ def test_execute_search_end_to_end():
     assert any("president" in r.title.lower() or "ghana" in r.title.lower() for r in results)
 
 
+def test_unified_search_all_sources():
+    """Verify unified search includes entity definitions, landmark locations, and knowledge by default."""
+    results = _execute_search("Ridge Hospital", top_k=5, rerank=True)
+    assert len(results) > 0
+    categories = {r.category for r in results}
+    # Should include entity definition and/or location without needing specific category filter
+    assert "named_entities" in categories or "location" in categories
+    assert any("Ridge Hospital" in r.title for r in results)
+
+
 if __name__ == "__main__":
     print("Testing singular/plural variants...")
     test_singular_plural_variants()
