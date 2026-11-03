@@ -272,6 +272,80 @@
       background: #dbeafe;
     }
 
+    /* Landmark Location Card */
+    .landmark-result-card {
+      background: #ffffff;
+      border: 1px solid var(--surface-border);
+      border-left: 4px solid #F6CC4F;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+    .landmark-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .landmark-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-heading);
+      margin: 0;
+    }
+    .landmark-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .landmark-pill {
+      background: var(--bg-subtle);
+      border: 1px solid var(--surface-border);
+      color: var(--text-heading);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 14px;
+    }
+    .landmark-pill.town {
+      background: #fef9c3;
+      border-color: #fef08a;
+      color: #854d0e;
+    }
+    .landmark-pill.road {
+      background: #eff6ff;
+      border-color: #dbeafe;
+      color: #1e40af;
+    }
+    .landmark-body-desc {
+      font-size: 14.5px;
+      line-height: 1.65;
+      color: var(--text-body);
+      background: #f8fafc;
+      border-radius: 6px;
+      padding: 14px 18px;
+      margin-bottom: 14px;
+      border: 1px solid #f1f5f9;
+    }
+    .landmark-nearby-section {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--surface-border);
+    }
+    .landmark-nearby-label {
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: block;
+    }
+
     /* Suggested Topics */
     .suggested-bar {
       display: flex;
@@ -625,7 +699,7 @@
     
     <div class="hero-area">
       <h1 class="hero-h1">Ghana's Information Retrieval Engine</h1>
-      <p class="hero-p">Search verified government portals, court judgments, university research, and commercial directories.</p>
+      <p class="hero-p">Search verified government portals, court judgments, commercial directories, and landmark locations across Ghana.</p>
     </div>
 
     <!-- Mode Switcher Tabs -->
@@ -639,6 +713,11 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
         <span>Business Directory</span>
         <span class="mode-badge">Yellow Pages</span>
+      </button>
+      <button class="mode-tab" id="tab-location" onclick="switchMode('location')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span>Landmarks & Places</span>
+        <span class="mode-badge">Locator</span>
       </button>
     </div>
 
@@ -732,6 +811,13 @@ curl -X POST https://search.ghanaopenai.org/api/business/search \
   -d '{"query": "tractor parts Accra", "top_k": 10}'
       </div>
 
+      <strong style="font-size: 13px;">4. Landmark Location & Surroundings Lookup</strong>
+      <div class="code-view">
+curl -X POST https://search.ghanaopenai.org/api/location/lookup \
+  -H "Content-Type: application/json" \
+  -d '{"landmark": "Manhyia Palace"}'
+      </div>
+
       <div style="display:flex; justify-content:flex-end; margin-top:16px;">
         <a href="https://github.com/GhanaOpenAI/ghana-search" target="_blank" class="nav-btn" style="background:#F6CC4F; color:#0f172a; font-weight:700; border:1px solid #e5bd3b;">
           View Documentation on GitHub →
@@ -789,6 +875,17 @@ curl -X POST https://search.ghanaopenai.org/api/business/search \
           { label: "Tractor Parts", query: "tractor parts Accra" },
           { label: "Ernest Chemists", query: "Ernest Chemists" },
           { label: "Lawyers Takoradi", query: "lawyers Takoradi" }
+        ]
+      },
+      location: {
+        placeholder: "Enter place or landmark name (e.g. 'Manhyia Palace', 'Ridge Hospital', 'Makola Market')...",
+        badge: "Landmark & Surroundings",
+        suggestions: [
+          { label: "Manhyia Palace", query: "Manhyia Palace" },
+          { label: "Ridge Hospital", query: "Ridge Hospital" },
+          { label: "Makola Market", query: "Makola Market" },
+          { label: "Peduase Lodge", query: "Peduase Lodge" },
+          { label: "Cape Coast Castle", query: "Cape Coast Castle" }
         ]
       }
     };
@@ -882,6 +979,47 @@ curl -X POST https://search.ghanaopenai.org/api/business/search \
       }
 
       container.innerHTML = pageRecords.map(r => {
+        if (r.isLandmark) {
+          const nearbyHtml = (r.nearby && r.nearby.length > 0)
+            ? `
+              <div class="landmark-nearby-section">
+                <span class="landmark-nearby-label">Nearby Landmarks & Surroundings</span>
+                <div class="landmark-pills" style="margin-bottom:0;">
+                  ${r.nearby.map(nb => `<span class="landmark-pill">📍 ${nb}</span>`).join('')}
+                </div>
+              </div>
+            `
+            : '';
+
+          const roadHtml = r.road ? `<span class="landmark-pill road">🛣️ Access: ${r.road}</span>` : '';
+          const townHtml = (r.town || r.suburb) ? `<span class="landmark-pill town">🏛️ ${r.suburb ? r.suburb + ', ' : ''}${r.town}</span>` : '';
+          const regHtml = r.region ? `<span class="landmark-pill">🇬🇭 ${r.region}</span>` : '';
+
+          return `
+            <article class="landmark-result-card">
+              <div class="landmark-header">
+                <div>
+                  <h2 class="landmark-title">📍 ${r.landmark}</h2>
+                  <div class="doc-trail" style="margin-left:0; margin-top:4px;">Landmark Positioning • ${r.source}</div>
+                </div>
+                ${r.url ? `<a href="${r.url}" target="_blank" rel="noopener noreferrer" class="btn-action btn-pdf">View on Map ↗</a>` : ''}
+              </div>
+
+              <div class="landmark-pills">
+                ${townHtml}
+                ${roadHtml}
+                ${regHtml}
+              </div>
+
+              <div class="landmark-body-desc">
+                ${r.description.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}
+              </div>
+
+              ${nearbyHtml}
+            </article>
+          `;
+        }
+
         let domainTrail = r.url;
         try {
           const u = new URL(r.url);
@@ -963,7 +1101,9 @@ curl -X POST https://search.ghanaopenai.org/api/business/search \
 
       btn.disabled = true;
       telemetryBar.className = 'telemetry-row active';
-      if (currentMode === 'business') {
+      if (currentMode === 'location') {
+        telemetryMsg.innerText = 'Locating landmark and scanning surroundings...';
+      } else if (currentMode === 'business') {
         telemetryMsg.innerText = 'Polling Ghana Yellow Pages and commercial directory...';
       } else {
         telemetryMsg.innerText = 'Analyzing query with spaCy NLP and polling repositories...';
@@ -992,7 +1132,10 @@ curl -X POST https://search.ghanaopenai.org/api/business/search \
         let endpoint = `${BACKEND_URL}/api/search`;
         let payload = {};
 
-        if (currentMode === 'business') {
+        if (currentMode === 'location') {
+          endpoint = `${BACKEND_URL}/api/location/lookup`;
+          payload = { landmark: q };
+        } else if (currentMode === 'business') {
           endpoint = `${BACKEND_URL}/api/business/search`;
           payload = { query: q, top_k: 30 };
         } else {
@@ -1015,7 +1158,31 @@ curl -X POST https://search.ghanaopenai.org/api/business/search \
         const data = await res.json();
         currentPage = 1;
 
-        if (currentMode === 'business') {
+        if (currentMode === 'location') {
+          const loc = data.data || {};
+          if (loc.found) {
+            allRecords = [{
+              isLandmark: true,
+              landmark: loc.landmark,
+              town: loc.town,
+              suburb: loc.suburb,
+              road: loc.road,
+              district: loc.district,
+              region: loc.region,
+              coordinates: loc.coordinates,
+              nearby: loc.nearby_landmarks || [],
+              description: loc.description,
+              url: (loc.coordinates?.latitude && loc.coordinates?.longitude)
+                ? `https://www.openstreetmap.org/?mlat=${loc.coordinates.latitude}&mlon=${loc.coordinates.longitude}#map=16/${loc.coordinates.latitude}/${loc.coordinates.longitude}`
+                : '',
+              source: 'OpenStreetMap (Ghana) & Landmark Proximity',
+            }];
+            telemetryMsg.innerText = `Located: ${loc.landmark} (${loc.town || loc.region || 'Ghana'})`;
+          } else {
+            allRecords = [];
+            telemetryMsg.innerText = `Could not locate '${q}' in Ghana map records.`;
+          }
+        } else if (currentMode === 'business') {
           allRecords = data.results || [];
           telemetryMsg.innerText = `Retrieved ${allRecords.length} verified commercial listings`;
         } else {
