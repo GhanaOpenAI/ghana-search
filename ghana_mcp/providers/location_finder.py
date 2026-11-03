@@ -46,32 +46,8 @@ class LocationFinderProvider:
             pass
         return None
 
-    def _find_nearby_landmarks(self, lat: float, lon: float, exclude_name: str) -> List[str]:
-        """Find prominent nearby Ghanaian landmarks and areas within 1.5km via Wikipedia Geosearch."""
-        url = (
-            f"https://en.wikipedia.org/w/api.php?action=query&list=geosearch"
-            f"&gscoord={lat}|{lon}&gsradius=1500&gslimit=8&format=json"
-        )
-        req = urllib.request.Request(url, headers=self.headers)
-        landmarks: List[str] = []
-
-        try:
-            with urllib.request.urlopen(req, timeout=self.timeout, context=SSL_CTX) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                items = data.get("query", {}).get("geosearch", [])
-                exclude_lower = exclude_name.lower()
-                for it in items:
-                    title = it.get("title", "").strip()
-                    tl = title.lower()
-                    if tl not in exclude_lower and exclude_lower not in tl and title not in landmarks:
-                        landmarks.append(title)
-        except Exception:
-            pass
-
-        return landmarks[:6]
-
     def lookup_location(self, landmark_name: str) -> Dict[str, Any]:
-        """Look up landmark location, town, neighbourhood, and nearby surroundings.
+        """Look up landmark location, town, neighbourhood, and main access road.
         Checks permanent local SQLite cache first (instant response, offline compatible).
         When online, falls back to OpenStreetMap Nominatim + Wikipedia Geosearch and caches result.
         """
@@ -120,8 +96,6 @@ class LocationFinderProvider:
         district = addr.get("state_district") or addr.get("county") or ""
         region = addr.get("state") or addr.get("region") or ""
 
-        nearby = self._find_nearby_landmarks(lat, lon, name) if lat and lon else []
-
         # Construct location string
         loc_components = []
         if suburb:
@@ -139,8 +113,6 @@ class LocationFinderProvider:
         sentences = [f"**{name}** is located in {location_summary}."]
         if road:
             sentences.append(f"It is situated along or just off **{road}**.")
-        if nearby:
-            sentences.append(f"Nearby landmarks and prominent places include: **{', '.join(nearby)}**.")
 
         description_text = " ".join(sentences)
 
@@ -153,7 +125,6 @@ class LocationFinderProvider:
             "district": district,
             "region": region,
             "coordinates": {"latitude": lat, "longitude": lon},
-            "nearby_landmarks": nearby,
             "description": description_text,
         }
 

@@ -980,17 +980,6 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
 
       container.innerHTML = pageRecords.map(r => {
         if (r.isLandmark) {
-          const nearbyHtml = (r.nearby && r.nearby.length > 0)
-            ? `
-              <div class="landmark-nearby-section">
-                <span class="landmark-nearby-label">Nearby Landmarks & Surroundings</span>
-                <div class="landmark-pills" style="margin-bottom:0;">
-                  ${r.nearby.map(nb => `<span class="landmark-pill">📍 ${nb}</span>`).join('')}
-                </div>
-              </div>
-            `
-            : '';
-
           const roadHtml = r.road ? `<span class="landmark-pill road">🛣️ Access: ${r.road}</span>` : '';
           const townHtml = (r.town || r.suburb) ? `<span class="landmark-pill town">🏛️ ${r.suburb ? r.suburb + ', ' : ''}${r.town}</span>` : '';
           const regHtml = r.region ? `<span class="landmark-pill">🇬🇭 ${r.region}</span>` : '';
@@ -1011,11 +1000,9 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
                 ${regHtml}
               </div>
 
-              <div class="landmark-body-desc">
+              <div class="landmark-body-desc" style="margin-bottom:0;">
                 ${r.description.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}
               </div>
-
-              ${nearbyHtml}
             </article>
           `;
         }

@@ -368,8 +368,7 @@ def ghana_location_info(
     landmark: str,
 ) -> str:
     """Describe where a Ghanaian landmark, hospital, market, institution, or place is located.
-    Tells you which town/city, neighbourhood/suburb, and region it is in, its main access road,
-    and prominent landmarks or areas near it.
+    Tells you which town/city, neighbourhood/suburb, and region it is in, and its main access road.
     Does not give turn-by-turn directions.
 
     Args:
@@ -641,8 +640,8 @@ GHANA_SEARCH_OPENAI_TOOLS = [
             "name": "ghana_location_info",
             "description": (
                 "Describe where a Ghanaian landmark, market, hospital, institution, or place is located. "
-                "Tells you which town/city, neighbourhood/suburb, and region it is in, its main access road, "
-                "and prominent landmarks or areas near it. Does not give turn-by-turn navigation."
+                "Tells you which town/city, neighbourhood/suburb, and region it is in, and its main access road. "
+                "Does not give turn-by-turn navigation."
             ),
             "parameters": {
                 "type": "object",

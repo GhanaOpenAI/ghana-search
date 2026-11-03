@@ -66,9 +66,9 @@ curl -X POST https://search.ghanaopenai.org/api/business/search \
   }'
 ```
 
-### 3. Landmark Location & Surroundings Lookup (`POST /api/location/lookup`)
+### 3. Landmark Location & Positioning (`POST /api/location/lookup`)
 
-Descriptive, spoken-style positioning: returns which town/city, neighbourhood/suburb, and region a place is located in, its main access road, and prominent landmarks near it (no turn-by-turn navigation):
+Descriptive positioning: returns which town/city, neighbourhood/suburb, and region a place is located in, and its main access road (no turn-by-turn navigation):
 
 ```bash
 curl -X POST https://search.ghanaopenai.org/api/location/lookup \
@@ -86,13 +86,7 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
     "suburb": "North Ridge",
     "road": "Castle Road",
     "region": "Greater Accra Region",
-    "nearby_landmarks": [
-      "CalBank",
-      "Asylum Down",
-      "Efua Sutherland Children's Park",
-      "Ghana School of Law"
-    ],
-    "description": "**Ridge Hospital** is located in North Ridge, Accra, Greater Accra Region. It is situated along or just off **Castle Road**. Nearby landmarks and prominent places include: **CalBank, Asylum Down, Efua Sutherland Children's Park, Ghana School of Law**."
+    "description": "**Ridge Hospital** is located in North Ridge, Accra, Greater Accra Region. It is situated along or just off **Castle Road**."
   }
 }
 ```
@@ -245,7 +239,7 @@ Ghana Search provides three distinct, dedicated MCP tools:
 | :--- | :--- | :--- | :--- |
 | `ghana_search` | Verified national knowledge (gov, laws, theses, news) | Question or policy topic | Official acts, thesis abstracts, news reports |
 | `ghana_business_directory` | Yellow pages & product supplier locator | Product, service, or business name | Matching businesses, locations, and phone numbers |
-| `ghana_location_info` | Landmark positioning & surroundings | Place, facility, or landmark name | Town/city, suburb, access road, and nearby places |
+| `ghana_location_info` | Landmark positioning & access road | Place, facility, or landmark name | Town/city, suburb, and main access road |
 
 For MCP clients and agent orchestrators connecting over Server-Sent Events (SSE):
 - **SSE Endpoint**: `https://search.ghanaopenai.org/mcp/sse`
