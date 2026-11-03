@@ -801,6 +801,9 @@
       <button class="filter-chip" data-cat="business" onclick="filterBySource('business')">Yellow Pages</button>
     </div>
 
+    <!-- Featured Knowledge Boxes (Entity Definition & Landmark Location) -->
+    <div id="featured-boxes" style="display: none; flex-direction: column; gap: 14px; margin-bottom: 20px;"></div>
+
     <!-- Results List (Paginated at 10 results per page) -->
     <div id="results-stream" class="results-list"></div>
 
@@ -878,6 +881,8 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
       : 'https://search.ghanaopenai.org';
 
     let allRecords = [];
+    let featuredEntityDef = null;
+    let featuredLandmark = null;
     let currentFilter = 'all'; // 'all' | 'named_entities' | 'news' | 'academic' | 'public_services' | 'business'
     let currentPage = 1;
     const PAGE_SIZE = 10;
@@ -895,9 +900,13 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
       document.getElementById('telemetry-bar').className = 'telemetry-row';
       document.getElementById('results-nav').style.display = 'none';
       document.getElementById('filter-chips-bar').style.display = 'none';
+      document.getElementById('featured-boxes').style.display = 'none';
+      document.getElementById('featured-boxes').innerHTML = '';
       document.getElementById('results-stream').innerHTML = '';
       document.getElementById('pagination-controls').style.display = 'none';
       allRecords = [];
+      featuredEntityDef = null;
+      featuredLandmark = null;
       currentFilter = 'all';
       currentPage = 1;
       document.getElementById('query-input').focus();
@@ -918,7 +927,10 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
     }
 
     function getDisplayRecords() {
-      if (currentFilter === 'all') return allRecords;
+      if (currentFilter === 'all') {
+        // Exclude featured entity definition and landmark from regular results stream to prevent duplication
+        return allRecords.filter(r => r.category !== 'named_entities' && r.category !== 'location' && !r.isLandmark);
+      }
       return allRecords.filter(r => {
         if (currentFilter === 'named_entities') return r.category === 'named_entities';
         if (currentFilter === 'location') return r.category === 'location' || r.category === 'landmark' || r.isLandmark;
@@ -936,9 +948,84 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
       document.getElementById('results-nav').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
+    function renderLandmarkCardHtml(r) {
+      const lm = r.metadata || r;
+      const roadHtml = lm.road ? `<span class="landmark-pill road">🛣️ Access: ${lm.road}</span>` : '';
+      const townHtml = (lm.town || lm.suburb) ? `<span class="landmark-pill town">🏛️ ${lm.suburb ? lm.suburb + ', ' : ''}${lm.town || ''}</span>` : '';
+      const regHtml = lm.region ? `<span class="landmark-pill">🇬🇭 ${lm.region}</span>` : '';
+      const landmarkName = lm.landmark || (r.title ? r.title.replace('📍 ', '').replace(' (Landmark Location)', '') : 'Landmark Location');
+      const descText = lm.description || r.snippet || '';
+      const mapUrl = r.url || (lm.coordinates?.latitude && lm.coordinates?.longitude ? `https://www.openstreetmap.org/?mlat=${lm.coordinates.latitude}&mlon=${lm.coordinates.longitude}#map=16/${lm.coordinates.latitude}/${lm.coordinates.longitude}` : '');
+
+      return `
+        <article class="landmark-result-card" style="margin-bottom: 0;">
+          <div class="landmark-header">
+            <div>
+              <h2 class="landmark-title">📍 ${landmarkName}</h2>
+              <div class="doc-trail" style="margin-left:0; margin-top:4px;">Landmark Positioning • ${r.source || 'OpenStreetMap (Ghana)'}</div>
+            </div>
+            ${mapUrl ? `<a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="btn-action btn-pdf">View on Map ↗</a>` : ''}
+          </div>
+
+          <div class="landmark-pills">
+            ${townHtml}
+            ${roadHtml}
+            ${regHtml}
+          </div>
+
+          <div class="landmark-body-desc" style="margin-bottom:0;">
+            ${descText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}
+          </div>
+        </article>
+      `;
+    }
+
+    function renderEntityDefCardHtml(r) {
+      const freq = r.metadata?.frequency ? `Corpus Mentions: ${Number(r.metadata.frequency).toLocaleString()}` : '';
+      const entityTitle = r.metadata?.phrase || r.title.replace(' (Ghanaian Entity Definition)', '');
+      return `
+        <article class="entity-def-card" style="margin-bottom: 0;">
+          <div class="doc-top" style="margin-bottom: 8px;">
+            <div>
+              <span class="doc-source" style="color: #065f46; font-weight: 700;">Ghanaian Named Entity Definition</span>
+              ${freq ? `<span class="doc-trail">${freq}</span>` : ''}
+            </div>
+          </div>
+          <h2 style="font-size: 19px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">
+            ${entityTitle}
+          </h2>
+          <div style="font-size: 14.5px; line-height: 1.65; color: #1e293b; margin-bottom: 4px;">
+            ${r.content || r.snippet}
+          </div>
+        </article>
+      `;
+    }
+
     function renderCards() {
       const container = document.getElementById('results-stream');
       const pagControls = document.getElementById('pagination-controls');
+      const featuredBox = document.getElementById('featured-boxes');
+
+      // Update Featured Knowledge Boxes (Landmark Location & Entity Definition) at the top
+      if (currentFilter === 'all') {
+        let fHtml = '';
+        if (featuredLandmark) {
+          fHtml += renderLandmarkCardHtml(featuredLandmark);
+        }
+        if (featuredEntityDef) {
+          fHtml += renderEntityDefCardHtml(featuredEntityDef);
+        }
+        if (fHtml) {
+          featuredBox.innerHTML = fHtml;
+          featuredBox.style.display = 'flex';
+        } else {
+          featuredBox.innerHTML = '';
+          featuredBox.style.display = 'none';
+        }
+      } else {
+        featuredBox.innerHTML = '';
+        featuredBox.style.display = 'none';
+      }
 
       const displayList = getDisplayRecords();
       const totalItems = displayList.length;
@@ -954,68 +1041,28 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
         document.getElementById('summary-counter').innerText = `Showing ${startIdx + 1}–${endIdx} of ${totalItems} results`;
         document.getElementById('summary-badge').innerText = 'Unified Search';
       } else {
-        document.getElementById('summary-counter').innerText = '0 records found';
+        document.getElementById('summary-counter').innerText = featuredLandmark || featuredEntityDef ? 'Knowledge Verified' : '0 records found';
       }
 
       if (totalItems === 0) {
-        container.innerHTML = '<div style="background:#fff; border:1px solid var(--surface-border); border-radius:8px; padding:36px; text-align:center; color:var(--text-muted);">No records found matching this filter.</div>';
+        if (featuredLandmark || featuredEntityDef) {
+          container.innerHTML = '';
+        } else {
+          container.innerHTML = '<div style="background:#fff; border:1px solid var(--surface-border); border-radius:8px; padding:36px; text-align:center; color:var(--text-muted);">No records found matching this filter.</div>';
+        }
         pagControls.style.display = 'none';
         return;
       }
 
       container.innerHTML = pageRecords.map(r => {
-        // 1. Landmark Location Card
+        // 1. Landmark Location Card (when specifically filtered)
         if (r.isLandmark || r.category === 'location' || r.category === 'landmark') {
-          const lm = r.metadata || r;
-          const roadHtml = lm.road ? `<span class="landmark-pill road">🛣️ Access: ${lm.road}</span>` : '';
-          const townHtml = (lm.town || lm.suburb) ? `<span class="landmark-pill town">🏛️ ${lm.suburb ? lm.suburb + ', ' : ''}${lm.town || ''}</span>` : '';
-          const regHtml = lm.region ? `<span class="landmark-pill">🇬🇭 ${lm.region}</span>` : '';
-          const landmarkName = lm.landmark || (r.title ? r.title.replace('📍 ', '').replace(' (Landmark Location)', '') : 'Landmark Location');
-          const descText = lm.description || r.snippet || '';
-
-          return `
-            <article class="landmark-result-card">
-              <div class="landmark-header">
-                <div>
-                  <h2 class="landmark-title">📍 ${landmarkName}</h2>
-                  <div class="doc-trail" style="margin-left:0; margin-top:4px;">Landmark Positioning • ${r.source}</div>
-                </div>
-                ${r.url ? `<a href="${r.url}" target="_blank" rel="noopener noreferrer" class="btn-action btn-pdf">View on Map ↗</a>` : ''}
-              </div>
-
-              <div class="landmark-pills">
-                ${townHtml}
-                ${roadHtml}
-                ${regHtml}
-              </div>
-
-              <div class="landmark-body-desc" style="margin-bottom:0;">
-                ${descText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}
-              </div>
-            </article>
-          `;
+          return renderLandmarkCardHtml(r);
         }
 
-        // 2. Ghanaian Named Entity Definition Card
+        // 2. Ghanaian Named Entity Definition Card (when specifically filtered)
         if (r.category === 'named_entities') {
-          const freq = r.metadata?.frequency ? `Corpus Mentions: ${Number(r.metadata.frequency).toLocaleString()}` : '';
-          const entityTitle = r.metadata?.phrase || r.title.replace(' (Ghanaian Entity Definition)', '');
-          return `
-            <article class="entity-def-card">
-              <div class="doc-top" style="margin-bottom: 8px;">
-                <div>
-                  <span class="doc-source" style="color: #065f46; font-weight: 700;">Ghanaian Named Entity Definition</span>
-                  ${freq ? `<span class="doc-trail">${freq}</span>` : ''}
-                </div>
-              </div>
-              <h2 style="font-size: 19px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">
-                ${entityTitle}
-              </h2>
-              <div style="font-size: 14.5px; line-height: 1.65; color: #1e293b; margin-bottom: 4px;">
-                ${r.content || r.snippet}
-              </div>
-            </article>
-          `;
+          return renderEntityDefCardHtml(r);
         }
 
         let domainTrail = r.url;
@@ -1148,28 +1195,30 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
 
         allRecords = searchData.results || [];
 
-        // If landmark location was found, prepend it to the top if not already present
-        if (locData && locData.data && locData.data.found) {
+        // Identify featured entity definition and landmark for top boxes
+        featuredEntityDef = allRecords.find(r => r.category === 'named_entities') || null;
+        featuredLandmark = allRecords.find(r => r.category === 'location') || null;
+
+        // If location lookup returned a landmark location not yet in allRecords
+        if (!featuredLandmark && locData && locData.data && locData.data.found) {
           const loc = locData.data;
-          const alreadyPresent = allRecords.some(r => r.category === 'location' || (r.title && r.title.includes(loc.landmark)));
-          if (!alreadyPresent) {
-            allRecords.unshift({
-              isLandmark: true,
-              category: 'location',
-              landmark: loc.landmark,
-              town: loc.town,
-              suburb: loc.suburb,
-              road: loc.road,
-              district: loc.district,
-              region: loc.region,
-              coordinates: loc.coordinates,
-              description: loc.description,
-              url: (loc.coordinates?.latitude && loc.coordinates?.longitude)
-                ? `https://www.openstreetmap.org/?mlat=${loc.coordinates.latitude}&mlon=${loc.coordinates.longitude}#map=16/${loc.coordinates.latitude}/${loc.coordinates.longitude}`
-                : '',
-              source: 'OpenStreetMap (Ghana) & Landmark Positioning',
-            });
-          }
+          featuredLandmark = {
+            isLandmark: true,
+            category: 'location',
+            landmark: loc.landmark,
+            town: loc.town,
+            suburb: loc.suburb,
+            road: loc.road,
+            district: loc.district,
+            region: loc.region,
+            coordinates: loc.coordinates,
+            description: loc.description,
+            url: (loc.coordinates?.latitude && loc.coordinates?.longitude)
+              ? `https://www.openstreetmap.org/?mlat=${loc.coordinates.latitude}&mlon=${loc.coordinates.longitude}#map=16/${loc.coordinates.latitude}/${loc.coordinates.longitude}`
+              : '',
+            source: 'OpenStreetMap (Ghana) & Landmark Positioning',
+          };
+          allRecords.push(featuredLandmark);
         }
 
         currentPage = 1;

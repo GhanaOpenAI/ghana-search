@@ -124,30 +124,6 @@ def _execute_search(
         offline_cats = [c for c in cats if c not in ("named_entities", "location")]
         offline_candidates = search_cache.search_offline(offline_tokens, offline_cats, limit=top_k * 3) if offline_cats else []
 
-        # Pull matching Ghanaian named entity definitions (0ms offline SQLite lookup)
-        if "named_entities" in cats:
-            entity_defs = entity_provider.search(search_keywords, limit=2)
-            offline_candidates = entity_defs + offline_candidates
-
-        # Pull matching landmark location if query is a location/landmark
-        if "location" in cats:
-            loc = location_finder.lookup_location(primary_query)
-            if loc and loc.get("found") and loc.get("coordinates"):
-                coords = loc["coordinates"]
-                offline_candidates.insert(
-                    0,
-                    SearchResult(
-                        title=f"📍 {loc['landmark']} (Landmark Location)",
-                        url=f"https://www.openstreetmap.org/?mlat={coords['latitude']}&mlon={coords['longitude']}#map=16/{coords['latitude']}/{coords['longitude']}",
-                        snippet=loc["description"],
-                        source="OpenStreetMap (Ghana)",
-                        category="location",
-                        content=loc["description"],
-                        score=380.0,
-                        metadata=loc,
-                    ),
-                )
-
         if rerank and offline_candidates:
             ranked = reranker.rerank(
                 query=text,
@@ -157,6 +133,33 @@ def _execute_search(
             )
         else:
             ranked = offline_candidates[:top_k]
+
+        featured_top: List[SearchResult] = []
+        if "named_entities" in cats:
+            entity_defs = entity_provider.search(search_keywords, limit=1)
+            if entity_defs:
+                entity_defs[0].score = 500.0
+                featured_top.append(entity_defs[0])
+
+        if "location" in cats:
+            loc = location_finder.lookup_location(primary_query)
+            if loc and loc.get("found") and loc.get("coordinates"):
+                coords = loc["coordinates"]
+                featured_top.append(
+                    SearchResult(
+                        title=f"📍 {loc['landmark']} (Landmark Location)",
+                        url=f"https://www.openstreetmap.org/?mlat={coords['latitude']}&mlon={coords['longitude']}#map=16/{coords['latitude']}/{coords['longitude']}",
+                        snippet=loc["description"],
+                        source="OpenStreetMap (Ghana)",
+                        category="location",
+                        content=loc["description"],
+                        score=480.0,
+                        metadata=loc,
+                    ),
+                )
+
+        if featured_top:
+            ranked = (featured_top + [r for r in ranked if r.category not in ("named_entities", "location")])[:top_k]
 
         latency_ms = (time.perf_counter() - start_time) * 1000.0
         analytics.record_query_sync(
@@ -178,19 +181,40 @@ def _execute_search(
 
     candidates: List[SearchResult] = []
     per_provider_limit = min(max(int(top_k * 0.15), 6), 10)
+    featured_top: List[SearchResult] = []
 
-    # 3. Instantly pull matching Ghanaian entity definitions from 104k curated dataset (0ms SQLite lookup)
+    # 3. Authoritative Ghanaian entity definition (Single best match, 0ms SQLite lookup)
     if "named_entities" in cats:
-        entity_defs = entity_provider.search(search_keywords, limit=2)
-        candidates.extend(entity_defs)
+        entity_defs = entity_provider.search(search_keywords, limit=1)
+        if entity_defs:
+            entity_defs[0].score = 500.0
+            featured_top.append(entity_defs[0])
 
-    # 4. Instantly pull matching pre-cached verified knowledge from local corpus (0ms SQLite lookup)
+    # 4. Authoritative landmark positioning (0ms SQLite lookup or Nominatim geocoding)
+    if "location" in cats:
+        loc = location_finder.lookup_location(primary_query)
+        if loc and loc.get("found") and loc.get("coordinates"):
+            coords = loc["coordinates"]
+            featured_top.append(
+                SearchResult(
+                    title=f"📍 {loc['landmark']} (Landmark Location)",
+                    url=f"https://www.openstreetmap.org/?mlat={coords['latitude']}&mlon={coords['longitude']}#map=16/{coords['latitude']}/{coords['longitude']}",
+                    snippet=loc["description"],
+                    source="OpenStreetMap (Ghana)",
+                    category="location",
+                    content=loc["description"],
+                    score=480.0,
+                    metadata=loc,
+                )
+            )
+
+    # 5. Instantly pull matching pre-cached verified knowledge from local corpus (0ms SQLite lookup)
     cached_cats = [c for c in cats if c not in ("named_entities", "location")]
     if cached_cats:
         cached_candidates = search_cache.search_offline(search_keywords, cached_cats, limit=per_provider_limit * 2)
         candidates.extend(cached_candidates)
 
-    # 5. Parallel asynchronous dispatch across all selected providers
+    # 6. Parallel asynchronous dispatch across all selected providers
     tasks = []
     if "news" in cats:
         tasks.append(("news", lambda: news_provider.search(search_keywords, limit=per_provider_limit)))
@@ -203,25 +227,6 @@ def _execute_search(
         tasks.append(("ghalii", lambda: ghalii_provider.search(search_keywords, limit=min(per_provider_limit, 6))))
     if "business" in cats:
         tasks.append(("business", lambda: business_provider.search(search_keywords, limit=per_provider_limit)))
-    if "location" in cats:
-        def _loc_task():
-            loc = location_finder.lookup_location(primary_query)
-            if loc and loc.get("found") and loc.get("coordinates"):
-                coords = loc["coordinates"]
-                return [
-                    SearchResult(
-                        title=f"📍 {loc['landmark']} (Landmark Location)",
-                        url=f"https://www.openstreetmap.org/?mlat={coords['latitude']}&mlon={coords['longitude']}#map=16/{coords['latitude']}/{coords['longitude']}",
-                        snippet=loc["description"],
-                        source="OpenStreetMap (Ghana)",
-                        category="location",
-                        content=loc["description"],
-                        score=380.0,
-                        metadata=loc,
-                    )
-                ]
-            return []
-        tasks.append(("location", _loc_task))
 
     from concurrent.futures import ThreadPoolExecutor, wait
     executor = ThreadPoolExecutor(max_workers=len(tasks) or 1)
@@ -280,6 +285,11 @@ def _execute_search(
         )
     else:
         ranked = unique_candidates[:effective_k]
+
+    # Prepend featured top results so entity definitions and locations are ALWAYS the top results for the API
+    if featured_top:
+        clean_ranked = [r for r in ranked if r.category not in ("named_entities", "location")]
+        ranked = (featured_top + clean_ranked)[:top_k]
 
     # Tier 2: Permanently store all unique documents per URL (title, content, date saved forever)
     search_cache.set_urls_batch(unique_candidates)
