@@ -13,6 +13,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY . .
 
+# Pre-download Ghana Entity Articles database (~438MB) during build for 100% offline-readiness
+RUN python3 -c "from ghana_mcp.providers.entity_articles import ensure_entity_articles_db; ensure_entity_articles_db()"
+
 ENV PORT=8000
 ENV HOST=0.0.0.0
 ENV WEB_CONCURRENCY=4

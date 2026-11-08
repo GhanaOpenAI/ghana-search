@@ -60,6 +60,17 @@ def test_unified_search_all_sources():
     assert any("Ridge Hospital" in r.title for r in results)
 
 
+def test_entity_articles_retrieval():
+    """Verify in-depth encyclopedia articles from 506k dataset are retrieved and prioritized."""
+    from ghana_mcp.providers.entity_articles import EntityArticlesProvider
+    provider = EntityArticlesProvider()
+    articles = provider.search(["Manhyia Palace"], limit=2)
+    assert len(articles) > 0
+    assert any("Manhyia Palace" in a.title for a in articles)
+    assert all(a.category == "entity_articles" for a in articles)
+    assert all(len(a.content) > 500 for a in articles)
+
+
 if __name__ == "__main__":
     print("Testing singular/plural variants...")
     test_singular_plural_variants()

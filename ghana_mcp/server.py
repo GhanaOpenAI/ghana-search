@@ -25,6 +25,7 @@ from ghana_mcp.providers.ghalii import GhaLIIProvider
 from ghana_mcp.providers.business import BusinessDirectoryProvider
 from ghana_mcp.providers.location_finder import LocationFinderProvider
 from ghana_mcp.providers.entity_definitions import EntityDefinitionsProvider
+from ghana_mcp.providers.entity_articles import EntityArticlesProvider
 from ghana_mcp.providers.base import SearchResult
 from ghana_mcp.reranker import reranker
 from ghana_mcp.nlp import extract_search_terms
@@ -42,6 +43,7 @@ ghalii_provider = GhaLIIProvider()
 business_provider = BusinessDirectoryProvider()
 location_finder = LocationFinderProvider()
 entity_provider = EntityDefinitionsProvider()
+articles_provider = EntityArticlesProvider()
 
 # Offline Mode Flag (air-gapped / local cache operation)
 OFFLINE_MODE = (
@@ -89,8 +91,8 @@ def _execute_search(
     lemma_chunks = nlp_data.get("lemma_chunks", [])
     nouns = nlp_data.get("nouns", [])
 
-    # Unified default: searches across all verified sources (entity definitions, location, knowledge, and business directory)
-    cats = categories or ["named_entities", "location", "news", "wikipedia", "academic", "public_services", "business"]
+    # Unified default: searches across all verified sources (entity definitions, location, encyclopedia articles, knowledge, and business directory)
+    cats = categories or ["named_entities", "location", "entity_articles", "news", "wikipedia", "academic", "public_services", "business"]
 
     # 2. Check 24-hour cache first (instant response for repeated queries)
     cached_results = search_cache.get(text, cats, top_k)
@@ -121,7 +123,7 @@ def _execute_search(
     # Offline Mode: Search exclusively across local SQLite cache database with 0 network calls
     if OFFLINE_MODE:
         offline_tokens = clean_chunks if clean_chunks else nouns
-        offline_cats = [c for c in cats if c not in ("named_entities", "location")]
+        offline_cats = [c for c in cats if c not in ("named_entities", "location", "entity_articles")]
         offline_candidates = search_cache.search_offline(offline_tokens, offline_cats, limit=top_k * 3) if offline_cats else []
 
         if rerank and offline_candidates:
@@ -158,8 +160,12 @@ def _execute_search(
                     ),
                 )
 
+        if "entity_articles" in cats:
+            ent_articles = articles_provider.search(search_keywords, limit=2)
+            featured_top.extend(ent_articles)
+
         if featured_top:
-            ranked = (featured_top + [r for r in ranked if r.category not in ("named_entities", "location")])[:top_k]
+            ranked = (featured_top + [r for r in ranked if r.category not in ("named_entities", "location", "entity_articles")])[:top_k]
 
         latency_ms = (time.perf_counter() - start_time) * 1000.0
         analytics.record_query_sync(
@@ -208,8 +214,13 @@ def _execute_search(
                 )
             )
 
-    # 5. Instantly pull matching pre-cached verified knowledge from local corpus (0ms SQLite lookup)
-    cached_cats = [c for c in cats if c not in ("named_entities", "location")]
+    # 5. Authoritative in-depth Ghanaian entity encyclopedia articles (from 506k dataset)
+    if "entity_articles" in cats:
+        ent_articles = articles_provider.search(search_keywords, limit=2)
+        featured_top.extend(ent_articles)
+
+    # 6. Instantly pull matching pre-cached verified knowledge from local corpus (0ms SQLite lookup)
+    cached_cats = [c for c in cats if c not in ("named_entities", "location", "entity_articles")]
     if cached_cats:
         cached_candidates = search_cache.search_offline(search_keywords, cached_cats, limit=per_provider_limit * 2)
         candidates.extend(cached_candidates)
@@ -286,9 +297,9 @@ def _execute_search(
     else:
         ranked = unique_candidates[:effective_k]
 
-    # Prepend featured top results so entity definitions and locations are ALWAYS the top results for the API
+    # Prepend featured top results so entity definitions, locations, and in-depth articles are ALWAYS the top results for the API
     if featured_top:
-        clean_ranked = [r for r in ranked if r.category not in ("named_entities", "location")]
+        clean_ranked = [r for r in ranked if r.category not in ("named_entities", "location", "entity_articles")]
         ranked = (featured_top + clean_ranked)[:top_k]
 
     # Tier 2: Permanently store all unique documents per URL (title, content, date saved forever)
@@ -328,14 +339,14 @@ def ghana_search(
     categories: Optional[List[str]] = None,
     rerank: bool = True,
 ) -> str:
-    """Search all Ghanaian sources with a single query: named entity definitions (Ghana NLP), landmark locations & access roads (OpenStreetMap), government agencies, court rulings, university research, news, and business directories.
+    """Search all Ghanaian sources with a single query: named entity definitions (Ghana NLP), landmark locations & access roads (OpenStreetMap), 506k in-depth entity encyclopedia articles, government agencies, court rulings, university research, news, and business directories.
     Takes free-form text input, queries local APIs and curated Ghanaian knowledge databases, and ranks results by relevance.
     All searches strictly enforce a 4.0-second timeout budget across all providers.
 
     Args:
         text: Natural language query (e.g. "Who is Mahama?", "Solar energy companies in Accra", "Where is Ridge Hospital?", "Ghana Revenue Authority VAT requirements", "KNUST battery research")
         top_k: Number of most relevant results to return (default: 50, maximum: total retrieved candidates)
-        categories: Optional category filter: ["named_entities", "location", "news", "academic", "public_services", "wikipedia", "business"]. When omitted, searches all sources unified.
+        categories: Optional category filter: ["named_entities", "location", "entity_articles", "news", "academic", "public_services", "wikipedia", "business"]. When omitted, searches all sources unified.
         rerank: Whether to rerank candidates by terminology and recency (default: True)
     """
     results = _execute_search(text, categories, top_k, rerank)
@@ -483,7 +494,7 @@ class SearchRequest(BaseModel):
     text: str = Field(..., description="Free-form query text input")
     categories: Optional[List[str]] = Field(
         default=None,
-        description="Categories to search (defaults to all sources unified: named_entities, location, news, wikipedia, academic, public_services, business. Or pass specific categories to filter)",
+        description="Categories to search (defaults to all sources unified: named_entities, location, entity_articles, news, wikipedia, academic, public_services, business. Or pass specific categories to filter)",
     )
     top_k: int = Field(default=50, ge=1, le=500, description="Number of results to return (default: 50)")
     rerank: bool = Field(default=True, description="Enable hybrid semantic reranking")
@@ -645,7 +656,7 @@ GHANA_SEARCH_OPENAI_TOOLS = [
                         "type": "array",
                         "items": {
                             "type": "string",
-                            "enum": ["named_entities", "location", "news", "academic", "public_services", "wikipedia", "business"],
+                            "enum": ["named_entities", "location", "entity_articles", "news", "academic", "public_services", "wikipedia", "business"],
                         },
                         "description": "Optional category filter. When omitted, searches across all Ghanaian sources unified.",
                     },

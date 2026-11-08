@@ -795,6 +795,7 @@
       <button class="filter-chip active-filter" data-cat="all" onclick="filterBySource('all')">All Results</button>
       <button class="filter-chip" data-cat="named_entities" onclick="filterBySource('named_entities')">Entity Definitions</button>
       <button class="filter-chip" data-cat="location" onclick="filterBySource('location')">📍 Landmark Locations</button>
+      <button class="filter-chip" data-cat="entity_articles" onclick="filterBySource('entity_articles')">📖 Encyclopedia</button>
       <button class="filter-chip" data-cat="news" onclick="filterBySource('news')">News & Media</button>
       <button class="filter-chip" data-cat="academic" onclick="filterBySource('academic')">University Theses</button>
       <button class="filter-chip" data-cat="public_services" onclick="filterBySource('public_services')">Laws & Government</button>
@@ -934,6 +935,7 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
       return allRecords.filter(r => {
         if (currentFilter === 'named_entities') return r.category === 'named_entities';
         if (currentFilter === 'location') return r.category === 'location' || r.category === 'landmark' || r.isLandmark;
+        if (currentFilter === 'entity_articles') return r.category === 'entity_articles';
         if (currentFilter === 'news') return r.category === 'news';
         if (currentFilter === 'academic') return r.category === 'academic';
         if (currentFilter === 'public_services') return r.category === 'public_services';
@@ -1063,6 +1065,26 @@ curl -X POST https://search.ghanaopenai.org/api/location/lookup \
         // 2. Ghanaian Named Entity Definition Card (when specifically filtered)
         if (r.category === 'named_entities') {
           return renderEntityDefCardHtml(r);
+        }
+
+        // 3. Ghanaian Entity In-Depth Encyclopedia Article
+        if (r.category === 'entity_articles') {
+          return `
+            <article class="doc-card" style="border-left: 3px solid #065f46;">
+              <div class="doc-top" style="margin-bottom: 6px;">
+                <div>
+                  <span class="doc-source" style="color: #065f46; font-weight: 700;">📖 Ghana Entity Encyclopedia</span>
+                  <span class="doc-trail">${r.metadata?.entity || 'Ghanaian Entity'} • In-depth Article</span>
+                </div>
+              </div>
+              <h3 style="font-size: 17px; font-weight: 700; color: #0f172a; margin: 4px 0 8px 0; line-height: 1.35;">
+                ${r.title}
+              </h3>
+              <div class="doc-snippet" style="font-size: 14.5px; line-height: 1.65; color: #1e293b;">
+                ${r.content || r.snippet}
+              </div>
+            </article>
+          `;
         }
 
         let domainTrail = r.url;
